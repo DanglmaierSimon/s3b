@@ -14,15 +14,11 @@ BOT_RACE = "Zerg"  # Options: Terran, Protoss, Zerg, Random
 MAP_PATH = "C:/Program Files (x86)/StarCraft II/Maps"  # Default Windows path - modify as needed
 
 # List of maps to play on (randomly selected if not specified)
-MAP_POOL = [
-    "PersephoneAIE_v4",
-    "PylonAIE_v4",
-    "TorchesAIE_v4"
-]
+MAP_POOL = ["PersephoneAIE_v4", "PylonAIE_v4", "TorchesAIE_v4"]
 
 # ===== OPPONENT SETTINGS =====
 # Computer opponent settings (for local games)
-OPPONENT_RACE = "Terran"  # Terran, Zerg, Protoss, Random
+OPPONENT_RACE = "Random"  # Terran, Zerg, Protoss, Random
 OPPONENT_DIFFICULTY = "Medium"  # VeryEasy, Easy, Medium, Hard, VeryHard, etc.
 
 # ===== GAME MODE =====
