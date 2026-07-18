@@ -21,9 +21,18 @@
     <ClCompile Include="bot_examples.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="bot_kq.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bot_examples.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bot_kq.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

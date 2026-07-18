@@ -29,26 +29,7 @@ class CompetitiveBot(BotAI):
             and structure.is_ready
         )
 
-    async def on_step(self, iteration: int):
 
-        self.iteration = iteration
-
-        if iteration < 10:
-            self.candidate_positions = set(self.enemy_start_locations)
-
-        self.prevent_supply_block()
-
-        await self.build_spawning_pool_if_possible()
-
-        await self.expand_if_possible()
-
-        await self.build_workers()
-
-        self.build_queens()
-
-        await self.attack_with_queens()
-
-        await self.spread_creep()
 
     async def spread_creep(self):
         tumors = (self.structures).filter(
@@ -222,15 +203,7 @@ class CompetitiveBot(BotAI):
         #     if self.can_afford(UnitTypeId.QUEEN, True):
         #         hatch.build(UnitTypeId.QUEEN, queue=False, can_afford_check=False)
 
-    def prevent_supply_block(self):
-        if self.supply_used == 200 or self.supply_cap == 200:
-            return
 
-        if self.already_pending(UnitTypeId.OVERLORD) > 0:
-            return
-
-        if self.supply_left < 5 and self.can_afford(UnitTypeId.OVERLORD):
-            self.train(UnitTypeId.OVERLORD)
 
     async def expand_if_possible(self):
 

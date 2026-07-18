@@ -2,7 +2,6 @@
 
 #define _SILENCE_ALL_CXX20_DEPRECATION_WARNINGS 1
 
-
 #include "sc2api/sc2_agent.h"
 #include "sc2api/sc2_interfaces.h"
 #include "sc2api/sc2_map_info.h"
