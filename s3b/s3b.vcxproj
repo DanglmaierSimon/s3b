@@ -153,6 +153,7 @@
   <ItemGroup>
     <ClInclude Include="bot_examples.h" />
     <ClInclude Include="bot_kq.hh" />
+    <ClInclude Include="unit_info.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
