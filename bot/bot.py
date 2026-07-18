@@ -89,22 +89,7 @@ class CompetitiveBot(BotAI):
                     clist[0], distance=dist
                 ).rounded
             )
-            # funktioniert nicht
-            can_cast = await self.can_cast(
-                tumor,
-                AbilityId.BUILD_CREEPTUMOR,
-                position_towards_enemy_or_friendly_base,
-            )
-            # funktioniert nicht
-            can_place = await self.can_place(
-                AbilityId.BUILD_CREEPTUMOR, [position_towards_enemy_or_friendly_base]
-            )
-            # funktioniert nicht
-            can_cast_a = await self.can_cast(
-                tumor,
-                AbilityId.BUILD_CREEPTUMOR_TUMOR,
-                position_towards_enemy_or_friendly_base,
-            )
+
             # funktioniert
             fp1 = await self.find_placement(
                 AbilityId.BUILD_CREEPTUMOR_TUMOR,
@@ -125,12 +110,7 @@ class CompetitiveBot(BotAI):
                 AbilityId.BUILD_CREEPTUMOR_TUMOR,
                 [position_towards_enemy_or_friendly_base],
             )
-            # funktioniert nicht
-            can_cast_b = await self.can_cast(
-                tumor,
-                AbilityId.BUILD_CREEPTUMOR_QUEEN,
-                position_towards_enemy_or_friendly_base,
-            )
+
             # funktioniert
             can_place_b = await self.can_place(
                 AbilityId.BUILD_CREEPTUMOR_QUEEN,
@@ -165,11 +145,6 @@ class CompetitiveBot(BotAI):
                 for queen in queens:
                     queen.stop()
 
-        px = list(range(-5, 5, 1))
-        py = list(range(-5, 5, 1))
-
-        count = 0
-
         tumors = (
             (self.structures)
             .filter(
@@ -190,47 +165,31 @@ class CompetitiveBot(BotAI):
 
             has_creep = self.has_creep(queen.position)
 
-            can_cast = False
-            pos = None
-
-            if count < 5 and tumors < 100:
-                if self.iteration % 32 == 0:
-                    shuffle(px)
-                    shuffle(py)
-
-                for i in px:
-                    if can_cast:
-                        break
-                    for j in py:
-                        if can_cast:
-                            break
-
-                        x = 0.0 if i == 0 else 10 / i
-                        y = 0.0 if j == 0 else 10 / j
-
-                        p = queen.position.offset(Point2([x, y]))
-                        can_cast = await self.can_cast(
-                            queen,
-                            AbilityId.BUILD_CREEPTUMOR_QUEEN,
-                            p,
-                        )
-                        can_place = await self.can_place(UnitTypeId.CREEPTUMOR, [p])
-                        if can_cast and can_place:
-                            pos = p
-
-            is_not_using = not queen.is_using_ability(AbilityId.BUILD_CREEPTUMOR_QUEEN)
-
-            if has_creep and can_cast and is_not_using and pos is not None:
-                self.do(
-                    unit_command.UnitCommand(
-                        AbilityId.BUILD_CREEPTUMOR_QUEEN, queen, pos, False
-                    ),
-                    False,
-                    False,
-                    False,
-                    False,
+            if tumors < 100:
+                creep_position = await self.find_placement(
+                    AbilityId.BUILD_CREEPTUMOR_TUMOR,
+                    queen.position,
+                    max_distance=1,
+                    random_alternative=True,
                 )
-                count += 1
+
+                is_not_using = not queen.is_using_ability(
+                    AbilityId.BUILD_CREEPTUMOR_QUEEN
+                )
+
+                if has_creep and is_not_using and creep_position is not None:
+                    self.do(
+                        unit_command.UnitCommand(
+                            AbilityId.BUILD_CREEPTUMOR_QUEEN,
+                            queen,
+                            creep_position,
+                            False,
+                        ),
+                        False,
+                        False,
+                        False,
+                        False,
+                    )
 
             es = targets.random_or(None)
             if es:
@@ -327,7 +286,10 @@ class CompetitiveBot(BotAI):
         hatcheries = self.structures(UnitTypeId.HATCHERY)
 
         for hatch in hatcheries:
-            if hatch.assigned_harvesters > 16:
+            if (
+                hatch.assigned_harvesters > 16
+                or hatch.ideal_harvesters < hatch.assigned_harvesters
+            ):
                 await self.distribute_workers(0)
                 return
 
