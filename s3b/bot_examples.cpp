@@ -3393,7 +3393,18 @@ namespace sc2 {
 			return;
 		}
 
-		auto pending_overlords = get_pending_units(Observation(), IsUnit(UNIT_TYPEID::ZERG_OVERLORD));
+		auto units = obs->GetUnits(Unit::Alliance::Self);
+		using namespace std;
+		//for (auto u : units)
+		//{
+		//	cout << "Unit( " << u->tag << "):" << endl;
+		//	cout << "  Type: " << UnitTypeToName(u->unit_type) << " (" << u->unit_type << ")" << endl;
+		//	cout << "  Progress: " << u->build_progress << endl;
+		//	cout << ")" << endl;
+		//}
+
+		auto pending_overlords = get_pending_units(Observation(), UNIT_TYPEID::ZERG_OVERLORD);
+		// std::cout << "========================" << std::endl;
 
 		if (pending_overlords.size() > 0)
 		{
@@ -3406,53 +3417,70 @@ namespace sc2 {
 		{
 			train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_OVERLORD);
 		}
-
-		//TryBuildUnit(ABILITY_ID::TRAIN_OVERLORD, UNIT_TYPEID::ZERG_LARVA);
-
-		//const ObservationInterface* observation = Observation();
-		//if (observation->GetFoodCap() == 200) {
-		//	return;
-		//}
-		//if (observation->GetFoodUsed() < observation->GetFoodCap() - 4) {
-		//	return;
-		//}
-		//if (observation->GetMinerals() < 100) {
-		//	return;
-		//}
-
-		// //  Slow overlord development in the beginning
-		//if (observation->GetFoodUsed() < 30) {
-		//	Units units = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_EGG));
-		//	for (const auto& unit : units) {
-		//		if (unit->orders.empty()) {
-		//			return;
-		//		}
-		//		if (unit->orders.front().ability_id == ABILITY_ID::TRAIN_OVERLORD) {
-		//			return;
-		//		}
-		//	}
-		//}
-		//size_t larva_count = CountUnitType(observation, UNIT_TYPEID::ZERG_LARVA);
-		//if (larva_count > 0) {
-		//	TryBuildUnit(ABILITY_ID::TRAIN_OVERLORD, UNIT_TYPEID::ZERG_LARVA);
-		//}
-		//return;
 	}
 
 	void sc2::BotKillerQueen::BuildSpawnPoolIfPossible()
 	{
+		auto obs = Observation();
+
+		if (!can_afford(obs, UNIT_TYPEID::ZERG_SPAWNINGPOOL))
+		{
+			return;
+		}
+
+		if (get_pending_buildings(obs, IsUnit(UNIT_TYPEID::ZERG_SPAWNINGPOOL)).size() > 0 || obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_SPAWNINGPOOL)).size() > 0)
+		{
+			return;
+		}
+
+		TryBuildOnCreep(ABILITY_ID::BUILD_SPAWNINGPOOL, UNIT_TYPEID::ZERG_DRONE);
 	}
 
 	void sc2::BotKillerQueen::ExpandIfPossible()
 	{
+		if (!can_afford(Observation(), UNIT_TYPEID::ZERG_HATCHERY))
+		{
+			return;
+		}
+		if (get_pending_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY).size() > 1)
+		{
+			return;
+		}
+		TryExpand(ABILITY_ID::BUILD_HATCHERY, UNIT_TYPEID::ZERG_DRONE);
 	}
 
 	void sc2::BotKillerQueen::BuildWorkers()
 	{
+		auto obs = Observation();
+		auto hatch_count = obs->GetUnits(Unit::Alliance::Self, [](const Unit& unit) { return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY); }).size();
+		auto larva_count = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
+		auto pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
+		if (larva_count == 0 || pending_workers > hatch_count)
+		{
+			return;
+		}
+
+		auto optimal_worker_count = std::min(hatch_count * 16, (size_t)70);
+		auto current_workers = obs->GetFoodWorkers();
+
+		// todo: distribute workers evenly to bases
+		auto larva = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA));
+
+		if (!larva.empty() && can_afford(obs, UNIT_TYPEID::ZERG_DRONE) && current_workers < optimal_worker_count)
+		{
+			std::cout << "optimal worker count: " << optimal_worker_count << std::endl;
+			std::cout << "current worker count: " << current_workers << std::endl;
+			std::cout << "training worker..." << std::endl;
+			train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_DRONE);
+		}
 	}
 
 	void BotKillerQueen::BuildQueens()
 	{
+		if (can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN))
+		{
+			train(Observation(), Actions(), Query(), UNIT_TYPEID::ZERG_QUEEN, 1);
+		}
 	}
 
 	void BotKillerQueen::AttackWithQueens()
