@@ -378,8 +378,113 @@ def get_production_unit() -> str:
     return string
 
 
+# get ability, which produces unit
+# get_production_ability: UnitId -> AbilityId
 def get_production_ability() -> str:
-    return ""
+
+    unit_from_ability: Dict[UnitId, list[AbilityId]] = {}
+
+    for ab in ABILITIES:
+        ability = ABILITIES[ab]
+
+        if ability.remaps_to:
+            continue
+
+        if ability.researches:
+            continue
+
+        if ability.morphs is None and ability.trains is None:
+            continue
+
+        # TODO: How to handle "morph" vs "production" abilities?
+        # some abilities just switch from a to b (liberators, thors, tanks etc)
+        # does that cause issues?
+        # potential scenario: want to produce tanks but that is "achieved" by un-sieging all sieged tanks -> analyze
+
+        produced_unit_id = ability.trains if ability.trains else ability.morphs
+        assert produced_unit_id
+
+        produced_unit = UNITS[produced_unit_id]
+
+        if "GHOSTNOVA" in produced_unit.name.upper():
+            continue
+
+        if ab in unit_from_ability:
+            unit_from_ability[produced_unit_id].append(ab)
+        else:
+            unit_from_ability[produced_unit_id] = [ab]
+
+    string = (
+        "inline constexpr ABILITY_ID get_production_abilities(UNIT_TYPEID unit) {\n"
+    )
+
+    string += "switch (unit) {\n"
+
+    NAME_PREFIXES_TO_REMOVE: set[str] = {
+        "STARPORT",
+        "LARVA",
+        "GATEWAY",
+        "FACTORY",
+        "LARVA",
+        "NEXUS",
+        "STARGATE",
+        "ROBOTICSFACILITY",
+        "BARRACKS",
+        "COMMANDCENTER",
+    }
+
+    REMAPS: Dict[str, str] = {
+        "MORPHTOINFESTEDTERRAN_INFESTEDTERRANS": "EFFECT_INFESTEDTERRANS",
+        "SPAWNCHANGELING_SPAWNCHANGELING": "EFFECT_SPAWNCHANGELING",
+        "SIEGEMODE_SIEGEMODE": "MORPH_SIEGEMODE",
+        "UPGRADETOLAIR_LAIR": "MORPH_LAIR",
+        "UPGRADETOHIVE_HIVE": "MORPH_HIVE",
+        "UPGRADETOGREATERSPIRE_GREATERSPIRE": "MORPH_GREATERSPIRE",
+        "MORPHTOBROODLORD_BROODLORD": "MORPH_BROODLORD",
+        "UPGRADETOPLANETARYFORTRESS_PLANETARYFORTRESS": "MORPH_PLANETARYFORTRESS",
+        "UPGRADETOORBITAL_ORBITALCOMMAND": "MORPH_ORBITALCOMMAND",
+        "TECHLABMORPH_TECHLABSTARPORT": "BUILD_TECHLAB",
+        "REACTORMORPH_REACTOR": "BUILD_REACTOR",
+        "MORPHTORAVAGER_RAVAGER": "MORPH_RAVAGER",
+    }
+
+    for u in unit_from_ability:
+        produced_unit = UNITS[u]
+
+        punu = produced_unit.name.upper()
+        if "DEVOURER" in punu or "GUARDIANMP" in punu:
+            continue
+
+        abilities: list[str] = []
+
+        for ab in unit_from_ability[u]:
+            ability = ABILITIES[ab]
+
+            aname = ability.name.upper()
+
+            for rem in NAME_PREFIXES_TO_REMOVE:
+                aname = aname.removeprefix(rem)
+
+            if aname in REMAPS:
+                aname = REMAPS[aname]
+
+            if aname == "":
+                continue
+
+            abilities.append(f"ABILITY_ID::{aname}")
+
+        # hack: make prettier
+        assert len(abilities) == 1
+
+        temp = "".join(abilities)
+
+        string += f"case UNIT_TYPEID::{produced_unit.race.upper()}_{produced_unit.name.upper()}: return {temp};\n"
+
+    string += "default: return ABILITY_ID::INVALID;\n"
+    string += "}\n"
+    string += "}\n"
+
+    return string
 
 
 with open("data.json", "r", encoding="utf-8") as f:
@@ -416,9 +521,6 @@ with open("s3b/unit_data.h", "w") as f:
 
 # goal:
 # produce the following mapping functions in c++ code:
-
-# get ability, which produces unit
-# get_production_ability: UnitId -> AbilityId
 
 # get remapped ability (or itself, if no remap)
 # get_ability_remap: AbilityId -> AbilityId
