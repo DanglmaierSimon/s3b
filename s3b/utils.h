@@ -21,15 +21,28 @@ namespace sc2 {
 		return get_pending_buildings(obs, [](const Unit&) -> bool {return true;});
 	}
 
-	inline Units get_pending_units(const ObservationInterface* obs, const sc2::Filter& filter)
+	inline Units get_pending_units(const ObservationInterface* obs, UNIT_TYPEID type)
 	{
-		auto f = [&filter](const Unit& unit) -> bool { return unit.is_alive && unit.build_progress < 1.0 && filter(unit); };
-		return obs->GetUnits(f);
-	}
+		auto f = [type](const Unit& unit) -> bool {
+			if (unit.unit_type.ToType() == UNIT_TYPEID::ZERG_EGG)
+			{
+				if (unit.orders.empty())
+				{
+					// can this even happen?
+					return false;
+				}
+				auto ability = get_production_abilities(type);
+				return unit.orders[0].ability_id == AbilityID(ability);
+			}
+			else if ((unit.unit_type.ToType() != type))
+			{
+				return false;
+			}
 
-	inline Units get_pending_units(const ObservationInterface* obs)
-	{
-		return get_pending_units(obs, [](const Unit&) -> bool {return true; });
+			return unit.build_progress < 1.0;
+
+			};
+		return obs->GetUnits(f);
 	}
 
 	inline bool have_enough_supply(const ObservationInterface* obs, int requested_supply)
