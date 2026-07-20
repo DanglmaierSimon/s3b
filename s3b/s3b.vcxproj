@@ -147,12 +147,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bot_examples.cpp" />
-    <ClCompile Include="bot_kq.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bot_examples.h" />
-    <ClInclude Include="bot_kq.hh" />
     <ClInclude Include="unit_data.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
