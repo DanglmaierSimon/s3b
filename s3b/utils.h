@@ -102,7 +102,7 @@ namespace sc2 {
 
 		if (p_units.empty() || p_units[0] == UNIT_TYPEID::INVALID)
 		{
-			std::cout << "WARNING: Requested builders for " << static_cast<int>(type) << " and received none!";
+			std::cout << "WARNING: Requested builders for " << UnitTypeToName(UnitTypeID(type)) << "(" << UnitTypeID(type) << ")" << " and received none!" << std::endl;
 			return false;
 		}
 
