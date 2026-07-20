@@ -132,13 +132,8 @@ namespace sc2 {
 				auto ability = get_production_abilities(type);
 				assert(ability != ABILITY_ID::INVALID);
 				std::cout << "INFO: Sending command " << AbilityTypeToName(AbilityID(ability)) << "; " << AbilityID(ability) << " to unit " << UnitTypeToName(builder->unit_type) << "; " << UnitTypeID(builder->unit_type) << std::endl;
-				// actions->UnitCommand(builder, ability);
-
-				if (TryBuildUnit(obs, actions, ability, type))
-				{
-					left_to_train = std::max(left_to_train - 1, 0);
-
-				}
+				actions->UnitCommand(builder, ability);
+				left_to_train = std::max(left_to_train - 1, 0);
 			}
 		}
 

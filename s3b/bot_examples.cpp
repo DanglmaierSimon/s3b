@@ -11,6 +11,8 @@
 #include "sc2api/sc2_unit_filters.h"
 #include "sc2lib/sc2_lib.h"
 
+#include "utils.h"
+
 namespace sc2 {
 
 	struct IsAttackable {
@@ -3334,4 +3336,156 @@ namespace sc2 {
 
 		return true;
 	}
+
+
+	void BotKillerQueen::OnGameStart()
+	{
+
+	}
+
+	void BotKillerQueen::OnStep()
+	{
+		const auto* obs = Observation();
+
+		this->iteration = obs->GetGameLoop();
+
+		if (this->iteration < 10)
+		{
+			for (auto sl : obs->GetGameInfo().enemy_start_locations)
+			{
+				//this->candidate_positions.insert(sl);
+			}
+		}
+
+		PreventSupplyBlock(obs);
+
+		BuildSpawnPoolIfPossible();
+
+		ExpandIfPossible();
+
+		BuildWorkers();
+
+		BuildQueens();
+
+		AttackWithQueens();
+
+		SpreadCreep();
+	}
+
+	void BotKillerQueen::OnGameEnd()
+	{
+
+	}
+
+	void BotKillerQueen::OnUnitIdle(const Unit* unit)
+	{
+
+	}
+
+	void BotKillerQueen::PreventSupplyBlock(const ObservationInterface* obs)
+	{
+
+		auto supply_used = obs->GetFoodUsed();
+		auto supply_cap = obs->GetFoodCap();
+
+		if (supply_used >= 200 || supply_cap >= 200)
+		{
+			return;
+		}
+
+		auto pending_overlords = get_pending_units(Observation(), IsUnit(UNIT_TYPEID::ZERG_OVERLORD));
+
+		if (pending_overlords.size() > 0)
+		{
+			return;
+		}
+
+		auto supply_left = obs->GetFoodCap() - obs->GetFoodUsed();
+
+		if (supply_left < 5 && can_afford(obs, UNIT_TYPEID::ZERG_OVERLORD))
+		{
+			train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_OVERLORD);
+		}
+
+		//TryBuildUnit(ABILITY_ID::TRAIN_OVERLORD, UNIT_TYPEID::ZERG_LARVA);
+
+		//const ObservationInterface* observation = Observation();
+		//if (observation->GetFoodCap() == 200) {
+		//	return;
+		//}
+		//if (observation->GetFoodUsed() < observation->GetFoodCap() - 4) {
+		//	return;
+		//}
+		//if (observation->GetMinerals() < 100) {
+		//	return;
+		//}
+
+		// //  Slow overlord development in the beginning
+		//if (observation->GetFoodUsed() < 30) {
+		//	Units units = observation->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_EGG));
+		//	for (const auto& unit : units) {
+		//		if (unit->orders.empty()) {
+		//			return;
+		//		}
+		//		if (unit->orders.front().ability_id == ABILITY_ID::TRAIN_OVERLORD) {
+		//			return;
+		//		}
+		//	}
+		//}
+		//size_t larva_count = CountUnitType(observation, UNIT_TYPEID::ZERG_LARVA);
+		//if (larva_count > 0) {
+		//	TryBuildUnit(ABILITY_ID::TRAIN_OVERLORD, UNIT_TYPEID::ZERG_LARVA);
+		//}
+		//return;
+	}
+
+	void sc2::BotKillerQueen::BuildSpawnPoolIfPossible()
+	{
+	}
+
+	void sc2::BotKillerQueen::ExpandIfPossible()
+	{
+	}
+
+	void sc2::BotKillerQueen::BuildWorkers()
+	{
+	}
+
+	void BotKillerQueen::BuildQueens()
+	{
+	}
+
+	void BotKillerQueen::AttackWithQueens()
+	{
+	}
+
+	void BotKillerQueen::SpreadCreep()
+	{
+	}
+
+	bool BotKillerQueen::TryBuildUnit(AbilityID ability_type_for_unit, UnitTypeID unit_type) {
+		const ObservationInterface* observation = Observation();
+
+		// If we are at supply cap, don't build anymore units, unless its an overlord.
+		if (observation->GetFoodUsed() >= observation->GetFoodCap() &&
+			ability_type_for_unit != ABILITY_ID::TRAIN_OVERLORD) {
+			return false;
+		}
+		const Unit* unit = nullptr;
+		if (!GetRandomUnit(unit, observation, unit_type)) {
+			return false;
+		}
+		if (!unit->orders.empty()) {
+			return false;
+		}
+
+		if (unit->build_progress != 1) {
+			return false;
+		}
+
+		Actions()->UnitCommand(unit, ability_type_for_unit);
+		return true;
+	}
+
+
 }  // namespace sc2
