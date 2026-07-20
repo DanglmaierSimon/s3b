@@ -6,62 +6,71 @@
 
 
 #include "bot_examples.h"
+#include "bot_kq.hh"
 #include "sc2api/sc2_api.h"
 #include "sc2api/sc2_gametypes.h"
 #include "sc2utils/sc2_manage_process.h"
 
 int main(int argc, char* argv[]) {
-    sc2::Coordinator coordinator;
-    if (!coordinator.LoadSettings(argc, argv)) {
-        return 1;
-    }
+	sc2::Coordinator coordinator;
+	if (!coordinator.LoadSettings(argc, argv)) {
+		return 1;
+	}
 
-    coordinator.SetMultithreaded(false);
-    coordinator.SetRealtime(true);
+	coordinator.SetMultithreaded(false);
+	coordinator.SetRealtime(true);
 
-    // Add the custom bot, it will control the players.
-    sc2::TerranBot bot1;
-    coordinator.SetParticipants({
-        CreateParticipant(sc2::Race::Terran, &bot1),
-        CreateComputer(sc2::Race::Random, sc2::Difficulty::VeryEasy, sc2::RandomBuild, "stupid computer"),
-        });
+	// Add the custom bot, it will control the players.
+	sc2::BotKillerQueen bot1;
+	auto race = sc2::Race::Zerg;
+	//sc2::TerranBot bot1;
+	//auto race = sc2::Race::Terran;
 
-    // Start the game.
-    coordinator.LaunchStarcraft();
+	coordinator.SetUseGeneralizedAbilityId(true);
 
-    const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
+	coordinator.SetParticipants({
+		CreateParticipant(race, &bot1),
+		CreateComputer(sc2::Race::Random, sc2::Difficulty::VeryEasy, sc2::RandomBuild, "stupid computer"),
+		});
 
-    const char* map_pool[] = {// "TorchesAIE_v4.SC2Map"
-        // "PersephoneAIE_v4"
-        "Simple128.SC2Map", "Flat128.SC2Map" };
+	// Start the game.
+	coordinator.LaunchStarcraft();
 
-    auto pool_size = std::size(map_pool);
+	const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
 
-    int low_dist = 0;
-    int high_dist = pool_size;
-    std::srand((unsigned int)std::time(nullptr));
-    auto selection = low_dist + std::rand() % (high_dist - low_dist);
+	const char* map_pool[] = {
+		"TorchesAIE_v4.SC2Map",
+		"PersephoneAIE_v4.SC2Map",
+		"Simple128.SC2Map",
+		"Flat128.SC2Map" };
 
-    auto path = std::string(mapdir);
-    path.append(map_pool[selection]);
+	auto pool_size = std::size(map_pool);
 
-    std::printf("Chosen map: %s\n", map_pool[selection]);
+	int low_dist = 0;
+	int high_dist = pool_size;
+	std::srand((unsigned int)std::time(nullptr));
+	auto selection = low_dist + std::rand() % (high_dist - low_dist);
 
-    bool do_break = false;
-    while (!do_break) {
-        if (!coordinator.StartGame(path)) {
-            break;
-        }
-        while (coordinator.Update() && !do_break) {
-            if (sc2::PollKeyPress()) {
-                do_break = true;
-            }
-        }
+	auto path = std::string(mapdir);
+	path.append(map_pool[selection]);
 
-        break;
-    }
+	std::printf("Chosen map: %s\n", map_pool[selection]);
 
-    bot1.Control()->DumpProtoUsage();
+	bool do_break = false;
+	while (!do_break) {
+		if (!coordinator.StartGame(path)) {
+			break;
+		}
+		while (coordinator.Update() && !do_break) {
+			if (sc2::PollKeyPress()) {
+				do_break = true;
+			}
+		}
 
-    return 0;
+		break;
+	}
+
+	bot1.Control()->DumpProtoUsage();
+
+	return 0;
 }

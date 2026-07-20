@@ -10,7 +10,7 @@ void sc2::BotKillerQueen::OnGameStart()
 
 void sc2::BotKillerQueen::OnStep()
 {
-	auto obs = Observation();
+	const auto* obs = Observation();
 
 	this->iteration = obs->GetGameLoop();
 
@@ -22,7 +22,7 @@ void sc2::BotKillerQueen::OnStep()
 		}
 	}
 
-	PreventSupplyBlock();
+	PreventSupplyBlock(obs);
 
 	BuildSpawnPoolIfPossible();
 
@@ -47,9 +47,8 @@ void sc2::BotKillerQueen::OnUnitIdle(const Unit* unit)
 
 }
 
-void sc2::BotKillerQueen::PreventSupplyBlock()
+void sc2::BotKillerQueen::PreventSupplyBlock(const sc2::ObservationInterface* obs)
 {
-	auto obs = Observation();
 
 	auto supply_used = obs->GetFoodUsed();
 	auto supply_cap = obs->GetFoodCap();
@@ -70,7 +69,7 @@ void sc2::BotKillerQueen::PreventSupplyBlock()
 
 	if (supply_left < 5 && can_afford(obs, UNIT_TYPEID::ZERG_OVERLORD))
 	{
-		train(UNIT_TYPEID::ZERG_OVERLORD);
+		train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_OVERLORD);
 	}
 }
 

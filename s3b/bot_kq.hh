@@ -28,7 +28,7 @@ namespace sc2 {
 		virtual void OnUnitIdle(const Unit* unit) final;
 
 	private:
-		void PreventSupplyBlock();
+		void PreventSupplyBlock(const ObservationInterface* obs);
 
 		void BuildSpawnPoolIfPossible();
 
