@@ -205,55 +205,6 @@ class CompetitiveBot(BotAI):
 
 
 
-    async def expand_if_possible(self):
-
-        if await self.get_next_expansion() is None:
-            return
-
-        # if self.already_pending(UnitTypeId.HATCHERY) > 0:
-        #     return
-
-        hatch_count = self.structures.filter(
-            lambda structure: structure.type_id == UnitTypeId.HATCHERY
-            and structure.is_ready
-        ).amount
-
-        if hatch_count >= len(self.expansion_locations_list):
-            return
-
-        if not self.can_afford(UnitTypeId.HATCHERY):
-            return
-
-        await self.expand_now(UnitTypeId.HATCHERY)
-
-    async def build_workers(self):
-
-        hatch_count = self.structures.filter(
-            lambda structure: structure.type_id == UnitTypeId.HATCHERY
-            and structure.is_ready
-        ).amount
-
-        if (
-            self.larva.amount == 0
-            or self.already_pending(UnitTypeId.DRONE) >= hatch_count
-        ):
-            return
-
-        optimal_worker_count = min(hatch_count * 16, 60)
-
-        cur_workers = self.workers.amount
-        await self.simple_dist_workers()
-
-        larva = self.larva.random_or(None)
-        if (
-            larva
-            and self.can_afford(UnitTypeId.DRONE, True)
-            and cur_workers < optimal_worker_count
-        ):
-            logging.debug(f"optimal worker count: {optimal_worker_count}")
-            logging.debug(f"current worker count: {cur_workers}")
-            logging.debug("training worker...")
-            larva.train(UnitTypeId.DRONE)
 
     async def simple_dist_workers(self):
         hatcheries = self.structures(UnitTypeId.HATCHERY)
@@ -266,38 +217,3 @@ class CompetitiveBot(BotAI):
                 await self.distribute_workers(0)
                 return
 
-    async def build_spawning_pool_if_possible(self):
-        spawning_pools = self.structures.filter(
-            lambda structure: structure.type_id == UnitTypeId.SPAWNINGPOOL
-            and structure.is_ready
-        )
-
-        if not self.can_afford(UnitTypeId.SPAWNINGPOOL, False):
-            # too poor
-            return
-
-        if self.already_pending(UnitTypeId.SPAWNINGPOOL) + spawning_pools.amount == 0:
-            logging.debug("trying to build spawning pool")
-            worker_candidates = self.workers.filter(
-                lambda worker: (worker.is_collecting or worker.is_idle)
-                and worker.tag not in self.unit_tags_received_action
-            )
-            # Worker_candidates can be empty
-            if worker_candidates:
-                map_center = self.game_info.map_center
-                position_towards_map_center = self.start_location.towards(
-                    map_center, distance=5
-                )
-                placement_position = await self.find_placement(
-                    UnitTypeId.SPAWNINGPOOL,
-                    near=position_towards_map_center,
-                    placement_step=1,
-                )
-                # Placement_position can be None
-                if placement_position:
-                    build_worker = worker_candidates.closest_to(placement_position)
-                    build_worker.build(UnitTypeId.SPAWNINGPOOL, placement_position)
-                else:
-                    logging.warning("could not find a building position")
-            else:
-                logging.warning("no available workers, not building spawning pool")
