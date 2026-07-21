@@ -36,9 +36,8 @@ class Ability:
     id: AbilityId
     name: str
     remaps_to: None | AbilityId
-    trains: None | UnitId
     researches: None | UpgradeId
-    morphs: None | UnitId
+    makes: None | UnitId
 
 
 ABILITIES: Dict[AbilityId, Ability] = {}
@@ -62,7 +61,7 @@ MAP_UPGRADE_FROM_ABILITY: Dict[UpgradeId, AbilityId] = {}
 STRUCTURES: Set[UnitId] = set()
 
 
-def get_morph(ability: Dict[str, Any]) -> UnitId | None:
+def get_makes(ability: Dict[str, Any]) -> UnitId | None:
     if not "target" in ability:
         return None
 
@@ -72,37 +71,36 @@ def get_morph(ability: Dict[str, Any]) -> UnitId | None:
 
     assert isinstance(t, dict)
 
-    if not "Morph" in t:
+    id = None
+
+    if "Train" in t:
+        assert "produces" in t["Train"]
+        id = (int)(t["Train"]["produces"])
+    elif "Morph" in t:
+        assert "produces" in t["Morph"]
+        id = (int)(t["Morph"]["produces"])
+    elif "Build" in t:
+        assert "produces" in t["Build"]
+        id = (int)(t["Build"]["produces"])
+    elif "BuildOnUnit" in t:
+        assert "produces" in t["BuildOnUnit"]
+        id = (int)(t["BuildOnUnit"]["produces"])
+    elif "TrainPlace" in t:
+        assert "produces" in t["TrainPlace"]
+        id = (int)(t["TrainPlace"]["produces"])
+    elif "MorphPlace" in t:
+        assert "produces" in t["MorphPlace"]
+        id = (int)(t["MorphPlace"]["produces"])
+    elif "BuildInstant" in t:
+        assert "produces" in t["BuildInstant"]
+        id = (int)(t["BuildInstant"]["produces"])
+    elif "Research" in t:
         return None
+    else:
+        print(t)
+        raise Exception("Unknown thing")
 
-    assert "produces" in t["Morph"]
-
-    id = (int)(t["Morph"]["produces"])
-
-    if id == 0:
-        return None
-
-    return UnitId(id)
-
-
-def get_trains(ability: Dict[str, Any]) -> UnitId | None:
-    if not "target" in ability:
-        return None
-
-    t = ability["target"]
-    if isinstance(t, str):
-        return None
-
-    assert isinstance(t, dict)
-
-    if not "Train" in t:
-        return None
-
-    assert "produces" in t["Train"]
-
-    id = (int)(t["Train"]["produces"])
-
-    if id == 0:
+    if id is None or id == 0:
         return None
 
     return UnitId(id)
@@ -147,42 +145,29 @@ def handle_abilities(abilities: list[Dict[str, Any]]):
         id = ability["id"]
         name = ability["name"]
         remaps = get_remaps_to(ability)
-        trains = get_trains(ability)
-        morphs = get_morph(ability)
+        makes = get_makes(ability)
         researches = get_research(ability)
 
-        if trains:
-            assert morphs is None
-            assert researches is None
-
-        if morphs:
-            assert trains is None
+        if makes:
             assert researches is None
 
         if researches:
-            assert trains is None
-            assert morphs is None
+            assert makes is None
 
-        ab = Ability(id, name, remaps, trains, researches, morphs)
+        ab = Ability(id, name, remaps, researches, makes)
         ABILITIES[id] = ab
 
         if ab.remaps_to:
             assert ab.id not in MAP_ABILITY_TO_ABILITY_REMAPS
             MAP_ABILITY_TO_ABILITY_REMAPS[ab.id] = ab.remaps_to
 
-        if ab.trains:
-            MAP_ABILITY_TO_TRAIN_UNIT[ab.id] = ab.trains
+        if ab.makes:
+            MAP_ABILITY_TO_TRAIN_UNIT[ab.id] = ab.makes
 
-            if ab.trains in MAP_UNIT_TO_CREATION_ABILITY:
-                MAP_UNIT_TO_CREATION_ABILITY[ab.trains].append(ab.id)
+            if ab.makes in MAP_UNIT_TO_CREATION_ABILITY:
+                MAP_UNIT_TO_CREATION_ABILITY[ab.makes].append(ab.id)
             else:
-                MAP_UNIT_TO_CREATION_ABILITY[ab.trains] = [ab.id]
-
-        if ab.morphs:
-            if ab.morphs in MAP_UNIT_TO_CREATION_ABILITY:
-                MAP_UNIT_TO_CREATION_ABILITY[ab.morphs].append(ab.id)
-            else:
-                MAP_UNIT_TO_CREATION_ABILITY[ab.morphs] = [ab.id]
+                MAP_UNIT_TO_CREATION_ABILITY[ab.makes] = [ab.id]
 
         if ab.researches:
             assert ab.id not in MAP_ABILITY_TO_UPGRADE
@@ -326,10 +311,10 @@ def get_production_unit() -> str:
         for unit_ability in unit.abilities:
             ability = ABILITIES[unit_ability]
 
-            if (ability.trains is None) and (ability.morphs is None):
+            if ability.makes is None:
                 continue
 
-            produced_unit_id = ability.trains if ability.trains else ability.morphs
+            produced_unit_id = ability.makes
 
             assert produced_unit_id
 
@@ -393,7 +378,7 @@ def get_production_ability() -> str:
         if ability.researches:
             continue
 
-        if ability.morphs is None and ability.trains is None:
+        if ability.makes is None:
             continue
 
         # TODO: How to handle "morph" vs "production" abilities?
@@ -401,7 +386,7 @@ def get_production_ability() -> str:
         # does that cause issues?
         # potential scenario: want to produce tanks but that is "achieved" by un-sieging all sieged tanks -> analyze
 
-        produced_unit_id = ability.trains if ability.trains else ability.morphs
+        produced_unit_id = ability.makes
         assert produced_unit_id
 
         produced_unit = UNITS[produced_unit_id]
@@ -431,6 +416,10 @@ def get_production_ability() -> str:
         "ROBOTICSFACILITY",
         "BARRACKS",
         "COMMANDCENTER",
+        "TERRAN",
+        "ZERG",
+        "PROTOSS",
+        "WARPGATE",
     }
 
     REMAPS: Dict[str, str] = {
@@ -446,13 +435,16 @@ def get_production_ability() -> str:
         "TECHLABMORPH_TECHLABSTARPORT": "BUILD_TECHLAB",
         "REACTORMORPH_REACTOR": "BUILD_REACTOR",
         "MORPHTORAVAGER_RAVAGER": "MORPH_RAVAGER",
+        "TRAINQUEEN_QUEEN": "TRAIN_QUEEN",
+        "BUILDAUTOTURRET_AUTOTURRET": "EFFECT_AUTOTURRET",
+        "ZERG_NYDUSCANALATTACKER": "BUILDNYDUSCANAL_SUMMONNYDUSCANALATTACKER",
     }
 
     for u in unit_from_ability:
         produced_unit = UNITS[u]
 
         punu = produced_unit.name.upper()
-        if "DEVOURER" in punu or "GUARDIANMP" in punu:
+        if "DEVOURER" in punu or "GUARDIANMP" in punu or "NYDUSCANALATTACKER" in punu:
             continue
 
         abilities: list[str] = []
