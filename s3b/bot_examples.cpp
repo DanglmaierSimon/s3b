@@ -3477,14 +3477,10 @@ namespace sc2 {
 
 	void BotKillerQueen::BuildQueens()
 	{
-		TODO FOR NEXT TIME :
-		PYTHON SCRIPT WHICH GENERATES THE PRODUCTION_IDS AND ABILITIES DOESNT HANDLE ALL CASES PROPERLY
-			THE JSON ALSO HAS "BUILDS" AND "BUILDONTARGET" AND MORE!!!!
-
-			if (can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN))
-			{
-				train(Observation(), Actions(), Query(), UNIT_TYPEID::ZERG_QUEEN, 1);
-			}
+		if (can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN))
+		{
+			train(Observation(), Actions(), Query(), UNIT_TYPEID::ZERG_QUEEN, 1);
+		}
 	}
 
 	void BotKillerQueen::AttackWithQueens()
