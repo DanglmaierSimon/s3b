@@ -89,10 +89,21 @@ namespace sc2 {
 
 	class BotKillerQueen : public sc2::Agent {
 	public:
+		virtual void OnGameFullStart() final;
 		virtual void OnGameStart() final;
 		virtual void OnStep() final;
 		virtual void OnGameEnd() final;
 		virtual void OnUnitIdle(const Unit* unit) final;
+		virtual void OnUnitDestroyed(const Unit*) final;
+		virtual void OnNeutralUnitCreated(const Unit*) final;
+		virtual void OnUnitCreated(const Unit*) final;
+		virtual void OnUpgradeCompleted(UpgradeID) final;
+		virtual void OnBuildingConstructionComplete(const Unit*) final;
+		virtual void OnUnitDamaged(const Unit*, float /*health*/, float /*shields*/) final;
+		virtual void OnNydusDetected() final;
+		virtual void OnNuclearLaunchDetected() final;
+		virtual void OnUnitEnterVision(const Unit*) final;
+		virtual void OnError(const std::vector<ClientError>& /*client_errors*/, const std::vector<std::string>& /*protocol_errors*/) final;
 
 	private:
 		void PreventSupplyBlock(const ObservationInterface* obs);
@@ -111,8 +122,7 @@ namespace sc2 {
 
 	private:
 		uint32_t iteration = 0;
-		// std::unordered_set<sc2::Point2D> candidate_positions;
-		bool target_list_empty_previously = true;
+		std::vector<Point3D> expansions_;
 
 		inline bool CanPathToLocation(const sc2::Unit* unit, sc2::Point2D& target_pos) {
 			// Send a pathing query from the unit to that point. Can also query from point to point,
@@ -170,11 +180,9 @@ namespace sc2 {
 			if (Query()->PathingDistance(unit, location) < 0.1f) {
 				return false;
 			}
-			// TODO: dont be stupid, calculate at start or something
-			auto expansions = search::CalculateExpansionLocations(Observation(), Query());
 
 			if (!isExpansion) {
-				for (const auto& expansion : expansions) {
+				for (const auto& expansion : expansions_) {
 					if (Distance2D(location, Point2D(expansion.x, expansion.y)) < 7) {
 						return false;
 					}
@@ -205,17 +213,16 @@ namespace sc2 {
 		inline bool TryExpand(AbilityID build_ability, UnitTypeID worker_type) {
 			const ObservationInterface* observation = Observation();
 			float minimum_distance = std::numeric_limits<float>::max();
-			auto expansions = search::CalculateExpansionLocations(observation, Query());
 			Point3D closest_expansion;
-			for (int i = 0; i < expansions.size(); i++) {
-				float current_distance = Distance2D(observation->GetStartLocation(), expansions[i]);
+			for (int i = 0; i < expansions_.size(); i++) {
+				float current_distance = Distance2D(observation->GetStartLocation(), expansions_[i]);
 				if (current_distance < .01f) {
 					continue;
 				}
 
 				if (current_distance < minimum_distance) {
-					if (Query()->Placement(build_ability, expansions[i])) {
-						closest_expansion = expansions[i];
+					if (Query()->Placement(build_ability, expansions_[i])) {
+						closest_expansion = expansions_[i];
 						minimum_distance = current_distance;
 					}
 				}

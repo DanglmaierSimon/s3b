@@ -13,7 +13,11 @@
 
 #include "utils.h"
 
+using namespace std;
+
 namespace sc2 {
+
+
 
 	struct IsAttackable {
 		bool operator()(const Unit& unit) {
@@ -3338,14 +3342,22 @@ namespace sc2 {
 	}
 
 
+	void BotKillerQueen::OnGameFullStart()
+	{
+		cout << "OnGameFullStart()" << endl;
+	}
+
 	void BotKillerQueen::OnGameStart()
 	{
+		cout << "OnGameStart()" << endl;
 
+		expansions_ = search::CalculateExpansionLocations(Observation(), Query());
 	}
 
 	void BotKillerQueen::OnStep()
 	{
 		const auto* obs = Observation();
+		// cout << "OnStep(): " << obs->GetGameLoop() << endl;
 
 		this->iteration = obs->GetGameLoop();
 
@@ -3372,13 +3384,100 @@ namespace sc2 {
 		SpreadCreep();
 	}
 
+	static string to_string(const Unit& unit)
+	{
+		std::string r;
+
+		r += "Unit [" + std::to_string(unit.tag) + "]: { type: " + UnitTypeToName(unit.unit_type) + " }";
+		return r;
+	}
+
+
 	void BotKillerQueen::OnGameEnd()
 	{
+		cout << "OnGameEnd()" << endl;
 
 	}
 
 	void BotKillerQueen::OnUnitIdle(const Unit* unit)
 	{
+		cout << "OnUnitIdle()" << endl;
+		cout << "Idle Unit: " << to_string(*unit) << endl;
+	}
+
+	void BotKillerQueen::OnUnitDestroyed(const Unit* unit)
+	{
+		cout << "OnUnitDestroyed()" << endl;
+		cout << "Unit destroyed: " << to_string(*unit) << endl;
+
+	}
+
+	void BotKillerQueen::OnNeutralUnitCreated(const Unit* unit)
+	{
+		cout << "OnNeutralUnitCreated()" << endl;
+		cout << "Neutral Unit created: " << to_string(*unit) << endl;
+	}
+
+	void BotKillerQueen::OnUnitCreated(const Unit* unit)
+	{
+		cout << "OnUnitCreated()" << endl;
+		cout << "Unit created: " << to_string(*unit) << endl;
+	}
+
+	void BotKillerQueen::OnUpgradeCompleted(UpgradeID upgrade)
+	{
+		cout << "OnUpgradeCompleted()" << endl;
+		cout << "Upgrade Completed: " << UpgradeIDToName(upgrade) << endl;
+	}
+
+	void BotKillerQueen::OnBuildingConstructionComplete(const Unit* unit)
+	{
+		cout << "OnBuildingConstructionComplete()" << endl;
+		cout << "Building finished: " << to_string(*unit) << endl;
+	}
+
+	void BotKillerQueen::OnUnitDamaged(const Unit* unit, float health, float shields)
+	{
+		cout << "OnUnitDamaged()" << endl;
+		cout << "Unit damaged: " << to_string(*unit) << "health: " << health << "; shields: " << shields << endl;
+
+	}
+
+	void BotKillerQueen::OnNydusDetected()
+	{
+		cout << "OnNydusDetected()" << endl;
+		cout << "oh oh, not good" << endl;
+	}
+
+	void BotKillerQueen::OnNuclearLaunchDetected()
+	{
+		cout << "OnNuclearLaunchDetected()" << endl;
+		cout << "RUN!" << endl;
+
+	}
+
+	void BotKillerQueen::OnUnitEnterVision(const Unit* unit)
+	{
+		cout << "OnUnitEnterVision()" << endl;
+		cout << "Unit entered vision: " << to_string(*unit) << endl;
+
+	}
+
+	void BotKillerQueen::OnError(const std::vector<ClientError>& client_errors, const std::vector<std::string>& protocoll_errors)
+	{
+		cout << "OnError()" << endl;
+
+		cout << "Received ERRORS!" << endl;
+
+		for (const auto& ce : client_errors)
+		{
+			cout << "Client Error: " << static_cast<int>(ce) << endl;
+		}
+
+		for (const auto& pe : protocoll_errors)
+		{
+			cout << "Protocoll Error: " << pe << endl;
+		}
 
 	}
 
@@ -3438,11 +3537,17 @@ namespace sc2 {
 
 	void sc2::BotKillerQueen::ExpandIfPossible()
 	{
+
 		if (!can_afford(Observation(), UNIT_TYPEID::ZERG_HATCHERY))
 		{
 			return;
 		}
-		if (get_pending_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY).size() > 1)
+
+		auto pending_hatches = get_pending_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
+		auto ready_hatches = get_ready_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
+
+
+		if (pending_hatches.size() + ready_hatches.size() >= expansions_.size())
 		{
 			return;
 		}
@@ -3468,23 +3573,150 @@ namespace sc2 {
 
 		if (!larva.empty() && can_afford(obs, UNIT_TYPEID::ZERG_DRONE) && current_workers < optimal_worker_count)
 		{
-			std::cout << "optimal worker count: " << optimal_worker_count << std::endl;
-			std::cout << "current worker count: " << current_workers << std::endl;
-			std::cout << "training worker..." << std::endl;
-			train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_DRONE);
+			if (train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_DRONE))
+			{
+				std::cout << "optimal worker count: " << optimal_worker_count << std::endl;
+				std::cout << "current worker count: " << current_workers << std::endl;
+				std::cout << "training worker..." << std::endl;
+			}
 		}
 	}
 
 	void BotKillerQueen::BuildQueens()
 	{
-		if (can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN))
+		auto spawning_pools = Observation()->GetUnits([](const Unit& unit) -> bool {return unit.build_progress == 1.0 && IsUnit{ UNIT_TYPEID::ZERG_SPAWNINGPOOL }(unit);}).size();
+
+
+		if (spawning_pools > 0 && can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN))
 		{
+			auto pending_queens = get_pending_units(Observation(), UNIT_TYPEID::ZERG_QUEEN);
+			auto hatcheries = get_ready_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
+
+			if (pending_queens >= hatcheries)
+			{
+				return;
+			}
+
 			train(Observation(), Actions(), Query(), UNIT_TYPEID::ZERG_QUEEN, 1);
 		}
 	}
 
 	void BotKillerQueen::AttackWithQueens()
 	{
+		auto obs = Observation();
+
+		auto queens = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_QUEEN));
+
+		auto targets = obs->GetUnits([](const Unit& unit)->bool {return unit.alliance == Unit::Alliance::Enemy;});
+
+		auto start_locations = obs->GetGameInfo().enemy_start_locations;
+
+
+		if (queens.empty())
+		{
+			return;
+		}
+
+		if (targets.empty())
+		{
+			for (auto q : queens)
+			{
+				if (q->orders.empty())
+				{
+					auto target = GetRandomEntry(start_locations);
+
+					Actions()->UnitCommand(q, ABILITY_ID::ATTACK, target);
+				}
+			}
+		}
+		else
+		{
+			for (auto q : queens)
+			{
+				if (q->orders.empty())
+				{
+					auto target = GetRandomEntry(targets);
+
+					Actions()->UnitCommand(q, ABILITY_ID::ATTACK, target->pos);
+				}
+
+			}
+		}
+
+
+		/*
+		queens = self.units.filter(lambda unit : unit.type_id == UnitTypeId.QUEEN)
+
+			targets = self.enemy_structures + self.enemy_units
+
+			if len(targets) == 0:
+		self.target_list_empty_previously = True
+			for queen in queens :
+		if queen.is_active :
+			continue
+
+			for loc in self.enemy_start_locations :
+				queen.attack(loc, True)
+		else:
+		if self.target_list_empty_previously :
+			self.target_list_empty_previously = False
+			for queen in queens :
+		queen.stop()
+
+			tumors = (
+				(self.structures)
+				.filter(
+					lambda structure : structure.type_id
+					in[
+						UnitTypeId.CREEPTUMORQUEEN,
+						UnitTypeId.CREEPTUMORBURROWED,
+						UnitTypeId.CREEPTUMORMISSILE,
+					]
+					)
+				.amount
+				)
+
+			for queen in queens :
+
+		if queen.is_attacking :
+			continue
+
+			has_creep = self.has_creep(queen.position)
+
+			if tumors < 100 :
+				creep_position = await self.find_placement(
+					AbilityId.BUILD_CREEPTUMOR_TUMOR,
+					queen.position,
+					max_distance = 1,
+					random_alternative = True,
+					)
+
+				is_not_using = not queen.is_using_ability(
+					AbilityId.BUILD_CREEPTUMOR_QUEEN
+				)
+
+				if has_creep and is_not_using and creep_position is not None:
+		self.do(
+			unit_command.UnitCommand(
+				AbilityId.BUILD_CREEPTUMOR_QUEEN,
+				queen,
+				creep_position,
+				False,
+				),
+			False,
+			False,
+			False,
+			False,
+			)
+
+			es = targets.random_or(None)
+			if es:
+		self.target_list_empty_previously = False
+			if not queen.is_attacking :
+				queen.attack(es.position)
+
+				*/
+
 	}
 
 	void BotKillerQueen::SpreadCreep()
