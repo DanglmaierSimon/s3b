@@ -45,6 +45,12 @@ namespace sc2 {
 		return obs->GetUnits(f);
 	}
 
+	inline Units get_ready_units(const ObservationInterface* obs, UNIT_TYPEID type)
+	{
+		auto f = [type](const Unit& unit) { return unit.build_progress == 1.0 && IsUnit{ type }(unit); };
+		return obs->GetUnits(f);
+	}
+
 	inline bool have_enough_supply(const ObservationInterface* obs, int requested_supply)
 	{
 		auto supply_cap = (int)obs->GetFoodCap();
@@ -106,18 +112,27 @@ namespace sc2 {
 			return false;
 		}
 
-		auto builder_filter = IsUnits(p_units);
+		auto builder_filter = [&p_units](const Unit& unit) -> bool {return unit.alliance == Unit::Alliance::Self && unit.build_progress == 1.0 && IsUnits{ p_units }(unit);};
 		auto builders = obs->GetUnits(builder_filter);
 
 		const auto& unit_data = obs->GetUnitTypeData();
 
-		auto supply_needed = unit_data[(uint32_t)type].food_required * amount;
-
 		auto left_to_train = amount;
 
-		for (const auto& builder : builders)
+		auto pending_units = get_pending_units(obs, type);
+
+		if (pending_units.size() >= builders.size())
 		{
-			if (left_to_train == 0)
+			return false;
+		}
+
+		int builders_tried = 0;
+
+		while (left_to_train > 0 && have_enough_supply(obs, unit_data[(uint32_t)type].food_required))
+		{
+			auto builder = GetRandomEntry(builders);
+
+			if (builders_tried >= builders.size())
 			{
 				break;
 			}
@@ -129,24 +144,16 @@ namespace sc2 {
 
 				auto abilities = queries->GetAbilitiesForUnit(builder, true, true);
 
-				std::cout << "DEBUG: Available abilities: " << std::endl;
-				cout << "Tag: " << abilities.unit_tag << endl;
-				cout << "Unit Type: " << abilities.unit_type_id.to_string() << "; " << UnitTypeToName(abilities.unit_type_id) << endl;
-				cout << "abilities: " << endl;
-				for (auto a : abilities.abilities)
-				{
-					cout << "ability: " << a.ability_id << "; " << AbilityTypeToName(AbilityID(a.ability_id)) << "; req. point: " << a.requires_point << endl;
-				}
-
-				cout << "=================" << endl;
-
-
 				auto t = builder->unit_type.ToType();
 				auto ability = get_production_abilities(type);
 				assert(ability != ABILITY_ID::INVALID);
 				std::cout << "INFO: Sending command " << AbilityTypeToName(AbilityID(ability)) << "; " << AbilityID(ability) << " to unit " << UnitTypeToName(builder->unit_type) << "; " << UnitTypeID(builder->unit_type) << std::endl;
 				actions->UnitCommand(builder, ability);
 				left_to_train = std::max(left_to_train - 1, 0);
+			}
+			else
+			{
+				builders_tried += 1;
 			}
 		}
 
