@@ -12,6 +12,7 @@
 #include "sc2lib/sc2_lib.h"
 
 #include "utils.h"
+#include <numeric>
 
 using namespace std;
 
@@ -3021,12 +3022,15 @@ namespace sc2 {
 		switch (upgrade.ToType()) {
 		case UPGRADE_ID::STIMPACK: {
 			stim_researched_ = true;
+			break;
 		}
 		case UPGRADE_ID::PERSONALCLOAKING: {
 			ghost_cloak_researched_ = true;
+			break;
 		}
 		case UPGRADE_ID::BANSHEECLOAK: {
 			banshee_cloak_researched_ = true;
+			break;
 		}
 		default:
 			break;
@@ -3382,6 +3386,8 @@ namespace sc2 {
 		AttackWithQueens();
 
 		SpreadCreep();
+
+
 	}
 
 	static string to_string(const Unit& unit)
@@ -3403,6 +3409,11 @@ namespace sc2 {
 	{
 		cout << "OnUnitIdle()" << endl;
 		cout << "Idle Unit: " << to_string(*unit) << endl;
+
+		if (IsUnit{ UNIT_TYPEID::ZERG_DRONE }(*unit))
+		{
+			sendWorkerToClosestMineralPatch(unit);
+		}
 	}
 
 	void BotKillerQueen::OnUnitDestroyed(const Unit* unit)
@@ -3557,7 +3568,8 @@ namespace sc2 {
 	void sc2::BotKillerQueen::BuildWorkers()
 	{
 		auto obs = Observation();
-		auto hatch_count = obs->GetUnits(Unit::Alliance::Self, [](const Unit& unit) { return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY); }).size();
+		const auto hatcheries = obs->GetUnits(Unit::Alliance::Self, [](const Unit& unit) { return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY); });
+		auto hatch_count = hatcheries.size();
 		auto larva_count = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
 		auto pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
 		if (larva_count == 0 || pending_workers > hatch_count)
@@ -3565,7 +3577,8 @@ namespace sc2 {
 			return;
 		}
 
-		auto optimal_worker_count = std::min(hatch_count * 16, (size_t)70);
+		auto calculated_workers = std::accumulate(hatcheries.cbegin(), hatcheries.cend(), 0, [](int val, const Unit* unit) { if (unit->alliance != Unit::Alliance::Self) { return val; } return unit->ideal_harvesters + val; });
+		auto optimal_worker_count = std::min(calculated_workers, 70);
 		auto current_workers = obs->GetFoodWorkers();
 
 		// todo: distribute workers evenly to bases
@@ -3578,6 +3591,15 @@ namespace sc2 {
 				std::cout << "optimal worker count: " << optimal_worker_count << std::endl;
 				std::cout << "current worker count: " << current_workers << std::endl;
 				std::cout << "training worker..." << std::endl;
+			}
+		}
+
+		for (auto hatch : hatcheries)
+		{
+			if (hatch->assigned_harvesters > hatch->ideal_harvesters)
+			{
+				distributeWorkers();
+				break;
 			}
 		}
 	}
@@ -3721,6 +3743,121 @@ namespace sc2 {
 
 	void BotKillerQueen::SpreadCreep()
 	{
+	}
+
+	inline static string to_string(const Point2D& p2)
+	{
+		return "Point2D { x: " + std::to_string(p2.x) + ", y: " + std::to_string(p2.y) + " }";
+	}
+
+
+	void BotKillerQueen::distributeWorkers()
+	{
+		auto hatcheries = Observation()->GetUnits(IsTownHall{});
+
+		for (const auto& source_hatchery : hatcheries)
+		{
+			if (source_hatchery->build_progress < 1.0)
+			{
+				continue;
+			}
+
+			auto assigned_workers = source_hatchery->assigned_harvesters;
+
+			if (assigned_workers > source_hatchery->ideal_harvesters && assigned_workers != 0)
+			{
+				for (const auto& target_hatch : hatcheries)
+				{
+					if (target_hatch->build_progress < 1.0)
+					{
+						continue;
+					}
+
+					if (target_hatch->assigned_harvesters >= target_hatch->ideal_harvesters)
+					{
+						continue;
+					}
+
+					if (target_hatch == source_hatchery)
+					{
+						// dont send to self
+						continue;
+					}
+
+					const auto* closest_worker = get_closest_unit(Observation(), source_hatchery->pos, UNIT_TYPEID::ZERG_DRONE);
+
+					if (!closest_worker)
+					{
+						cout << "WARN: could not find a worker close to " << source_hatchery->pos.x << ", " << source_hatchery->pos.y << ", " << source_hatchery->pos.z;
+						return;
+					}
+
+					const auto* closest_min_patch = find_closest_mineral_patch(target_hatch->pos);
+
+					if (!closest_min_patch)
+					{
+						cout << "WARN: Could not find a mineral patch close to " << to_string(*target_hatch);
+						return;
+					}
+
+					cout << "Dist Workers: Moving worker " << to_string(*closest_worker) << " to " << to_string(*closest_min_patch) << endl;
+					Actions()->UnitCommand(closest_worker, ABILITY_ID::SMART, &*closest_min_patch);
+					//Debug()->DebugTextOut(std::to_string(closest_worker->tag), closest_worker->pos, Colors::Yellow);
+					//Debug()->DebugSphereOut(closest_min_patch->pos, 1, Colors::Green);
+					//Debug()->DebugLineOut(closest_worker->pos, closest_min_patch->pos, Colors::Red);
+					//Debug()->SendDebug();
+				//	Actions()->SendActions();
+					return;
+				}
+			}
+		}
+	}
+
+
+	const Unit* BotKillerQueen::find_closest_mineral_patch(const Point2D& pos)
+	{
+		Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+		float distance = std::numeric_limits<float>::max();
+		const Unit* target = nullptr;
+		for (const auto& u : units) {
+			if (u->unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
+				float d = DistanceSquared2D(u->pos, pos);
+				if (d < distance) {
+					distance = d;
+					target = u;
+				}
+			}
+		}
+		// If we never found one return false;
+		if (distance == std::numeric_limits<float>::max()) {
+			cout << "WARN: Could not find a mineral patch!" << endl;
+			return nullptr;
+		}
+
+		return target;
+	};
+
+
+	void BotKillerQueen::sendWorkerToClosestMineralPatch(const Unit* worker)
+	{
+		if (worker->unit_type != UnitTypeID(UNIT_TYPEID::ZERG_DRONE))
+		{
+			cout << "WARN: Received invalid unit to distribute to mineral patch! Unit: " << to_string(*worker) << endl;
+		}
+
+		auto closest_min_patch = find_closest_mineral_patch(worker->pos);
+
+		if (!closest_min_patch)
+		{
+			cout << "WARN: Could not find a mineral patch near " << to_string(*worker);
+		}
+
+		cout << "Idle Worker detected! Sending worker " << to_string(*worker) << " to " << to_string(closest_min_patch->pos) << endl;
+
+		if (worker->orders.empty() || worker->orders[0].ability_id != ABILITY_ID::HARVEST_GATHER)
+		{
+			Actions()->UnitCommand(worker, ABILITY_ID::SMART, &*closest_min_patch);
+		}
 	}
 
 	bool BotKillerQueen::TryBuildUnit(AbilityID ability_type_for_unit, UnitTypeID unit_type) {

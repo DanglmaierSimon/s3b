@@ -120,6 +120,12 @@ namespace sc2 {
 
 		void SpreadCreep();
 
+		void distributeWorkers();
+
+		const Unit* find_closest_mineral_patch(const Point2D& pos);
+
+		void sendWorkerToClosestMineralPatch(const Unit* worker);
+
 	private:
 		uint32_t iteration = 0;
 		std::vector<Point3D> expansions_;
