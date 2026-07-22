@@ -3639,10 +3639,43 @@ namespace sc2 {
 			return;
 		}
 
+
+		auto random_queen = GetRandomEntry(queens);
+
+
+		if (obs->HasCreep(random_queen->pos) && (random_queen->orders.empty() || random_queen->orders.front().ability_id == ABILITY_ID::MOVE_MOVE || random_queen->orders.front().ability_id == ABILITY_ID::ATTACK))
+		{
+			auto dx = GetRandomScalar();
+			auto dy = GetRandomScalar();
+
+			auto offset = Point2D(random_queen->pos.x + dx, random_queen->pos.y + dy);
+
+			auto tumors = obs->GetUnits(IsUnits{ { UNIT_TYPEID::ZERG_CREEPTUMOR, UNIT_TYPEID::ZERG_CREEPTUMOR, UNIT_TYPEID::ZERG_CREEPTUMORBURROWED, UNIT_TYPEID::ZERG_HATCHERY} });
+
+			auto closest_tumor = get_closest_unit(obs, offset, tumors);
+			auto distance = 0.0;
+
+			if (closest_tumor)
+			{
+				distance = Distance2D(closest_tumor->pos, offset);
+			}
+
+			if (distance > 8)
+			{
+				Actions()->UnitCommand(random_queen, ABILITY_ID::BUILD_CREEPTUMOR_QUEEN, offset);
+			}
+		}
+
 		if (targets.empty())
 		{
 			for (auto q : queens)
 			{
+				//auto abilities = Query()->GetAbilitiesForUnit(q);
+				//for (auto a : abilities.abilities) {
+				//	cout << "Unit: " << to_string(*q) << endl;
+				//	cout << "Ability: " << AbilityTypeToName(AbilityID(a.ability_id)) << "[" << (int)a.ability_id << "]" << endl;
+				//}
+
 				if (q->orders.empty())
 				{
 					auto target = GetRandomEntry(start_locations);
@@ -3664,6 +3697,9 @@ namespace sc2 {
 
 			}
 		}
+
+
+
 
 
 		/*

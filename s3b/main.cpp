@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	coordinator.SetMultithreaded(false);
-	coordinator.SetRealtime(true);
+	coordinator.SetRealtime(false);
 
 	// Add the custom bot, it will control the players.
 	sc2::BotKillerQueen bot1;
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 	const char* map_pool[] = {
 		"TorchesAIE_v4.SC2Map",
 		"PersephoneAIE_v4.SC2Map",
-		"Simple128.SC2Map",
+		//"Simple128.SC2Map",
 		"Flat128.SC2Map" };
 
 	auto pool_size = std::size(map_pool);

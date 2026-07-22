@@ -51,6 +51,32 @@ namespace sc2 {
 		return obs->GetUnits(f);
 	}
 
+
+	inline const Unit* get_closest_unit(const ObservationInterface* obs, const Point2D pos, const Units& units)
+	{
+		if (units.empty())
+		{
+			return nullptr;
+		}
+
+		const Unit* closest = units.front();
+		float distance = 1000000;
+
+		// start at one intentionally
+		for (int i = 1; i < units.size(); i++)
+		{
+			auto candidate = units[i];
+			auto d = DistanceSquared2D(candidate->pos, pos);
+			if (d < distance)
+			{
+				distance = d;
+				closest = candidate;
+			}
+		}
+
+		return closest;
+	}
+
 	inline const Unit* get_closest_unit(const ObservationInterface* obs, const Point2D pos, UNIT_TYPEID type)
 	{
 		Units units = obs->GetUnits(IsUnit{ type });
