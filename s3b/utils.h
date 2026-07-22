@@ -51,6 +51,27 @@ namespace sc2 {
 		return obs->GetUnits(f);
 	}
 
+	inline const Unit* get_closest_unit(const ObservationInterface* obs, const Point2D pos, UNIT_TYPEID type)
+	{
+		Units units = obs->GetUnits(IsUnit{ type });
+		float distance = 0;
+		const Unit* target = nullptr;
+		for (const auto& u : units) {
+			float d = DistanceSquared2D(u->pos, pos);
+			if (!target)
+			{
+				distance = d;
+				target = u;
+			}
+			else if (d < distance) {
+				distance = d;
+				target = u;
+			}
+		}
+
+		return target;
+	}
+
 	inline bool have_enough_supply(const ObservationInterface* obs, int requested_supply)
 	{
 		auto supply_cap = (int)obs->GetFoodCap();
