@@ -523,6 +523,9 @@ with open("s3b/unit_data.h", "w") as f:
 # which unit researches which upgrade
 # get_structure_for_research -> UpgradeId -> UnitId
 
+# prerequisites for stuff
+# buildings/research for units
+# buildings for other buildings
 
 # TODO: Future ideas
 # also generate costs (minerals, gas, supply, time) from this data
