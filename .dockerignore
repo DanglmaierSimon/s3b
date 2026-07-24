@@ -1,0 +1,5 @@
+bin/
+.cache/
+.git/
+.vscode/
+s3b/

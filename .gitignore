@@ -1,5 +1,7 @@
 lib/
 include/
+build/
+upload/
 
 # Created by https://www.toptal.com/developers/gitignore/api/windows,c++,visualstudio
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,c++,visualstudio
