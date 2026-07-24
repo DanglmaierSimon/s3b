@@ -3886,6 +3886,7 @@ namespace sc2 {
 		if (!closest_min_patch)
 		{
 			cout << "WARN: Could not find a mineral patch near " << to_string(*worker);
+			return;
 		}
 
 		cout << "Idle Worker detected! Sending worker " << to_string(*worker) << " to " << to_string(closest_min_patch->pos) << endl;
