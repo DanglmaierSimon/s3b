@@ -40,12 +40,21 @@ include(cpp_sc2)
 
 set(CMAKE_INCLUDE_CURRENT_DIR true)
 add_executable(s3b 
-    src/bot_examples.cpp
-    src/bot_examples.h
-    src/bot_kq.cpp
     src/bot_kq.hh
+    src/bot_kq.cpp
+
+    src/unit_data.h
+    src/utils.h
+
     src/main.cpp
 )
+
+if (NOT MSVC)
+    target_compile_options(s3b PRIVATE -Wall -Wextra)
+
+else()
+    target_compile_options(s3b PRIVATE /MP /W4 /WX)
+endif()
 
 # TODO: Figure out how to do this properly, this cant be right way
 target_include_directories(s3b PRIVATE
