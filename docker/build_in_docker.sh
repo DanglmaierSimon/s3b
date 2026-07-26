@@ -1,20 +1,25 @@
 #!/bin/bash
 set -eou pipefail
 
-cd ..
+echo "CMake Version: $(cmake --version)"
 
-pwd
+# rm -rf dockerbuild
+echo "creating build directory..."
+mkdir -pv /cache/dockerbuild
 
-rm -rf build
-mkdir -p build
+echo "configuring project..."
+cmake -S . -B /cache/dockerbuild -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja -DBUILD_FOR_DIST=ON
 
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -GNinja
+echo "building project..."
+cmake --build /cache/dockerbuild --target s3b -j"$(nproc)"
 
-cmake --build build -j"$(nproc)"
+echo "creating upload dir..."
+mkdir -pv upload
 
-mkdir -p upload
 
-cp "build/s3b" "upload"
+cp -v "bin/s3b" "upload"
 
 cd "upload"
-zip -r "s3b.zip" "build"
+
+echo "creating release zip..."
+zip -r "s3b.zip" "s3b"
