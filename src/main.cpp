@@ -1,14 +1,12 @@
-#include <cstdio>
-#define _SILENCE_ALL_CXX20_DEPRECATION_WARNINGS 1
 
 #include <iostream>
 
-#include "bot_examples.h"
+#include "sc2_api.h"
+#include "sc2_arg_parser.h"
+#include "sc2_gametypes.h"
+#include "sc2_manage_process.h"
+
 #include "bot_kq.hh"
-#include "sc2api/sc2_api.h"
-#include "sc2api/sc2_gametypes.h"
-#include "sc2utils/sc2_arg_parser.h"
-#include "sc2utils/sc2_manage_process.h"
 
 using namespace std;
 
@@ -120,9 +118,14 @@ int main(int argc, char* argv[]) {
 
 	const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
 
-	const char* map_pool[] = { "TorchesAIE_v4.SC2Map", /*"PersephoneAIE_v4.SC2Map",
-		//"Simple128.SC2Map",
-		"Flat128.SC2Map"*/ };
+	const char* map_pool[] = {
+		"IncorporealAIE_v4.SC2Map",
+		"MagannathaAIE_v2.SC2Map",
+		"UltraloveAIE_v2.SC2Map",
+		"PersephoneAIE_v4.SC2Map",
+		"PylonAIE_v4.SC2Map",
+		"TorchesAIE_v4.SC2Map",
+	};
 
 	auto pool_size = std::size(map_pool);
 
