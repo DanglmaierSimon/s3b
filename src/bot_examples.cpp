@@ -3345,6 +3345,143 @@ namespace sc2 {
 		return true;
 	}
 
+	static string to_string(sc2::Attribute a)
+	{
+		switch (a)
+		{
+		case Attribute::Light: return "Light(1)";
+		case Attribute::Armored: return "Armored(2)";
+		case Attribute::Biological: return "Biological(3)";
+		case Attribute::Mechanical: return "Mechanical(4)";
+		case Attribute::Robotic: return "Robotic(5)";
+		case Attribute::Psionic: return "Psionic(6)";
+		case Attribute::Massive: return "Massive(7)";
+		case Attribute::Structure: return "Structure(8)";
+		case Attribute::Hover: return "Hover(9)";
+		case Attribute::Heroic: return "Heroic(10)";
+		case Attribute::Summoned: return "Summoned(11)";
+		case Attribute::Invalid: return "Invalid(12)";
+		default: return string("Unknown(") + ::to_string(static_cast<int>(a)) + ")";
+		}
+	}
+
+	static string to_string(sc2::Weapon w)
+	{
+		// TODO Rest of this stuff
+		switch (w.type)
+		{
+		case Weapon::TargetType::Air: return "Air";
+		case Weapon::TargetType::Ground: return "Ground";
+		case Weapon::TargetType::Any: return "Any";
+		default: return "Invalid";
+		}
+	}
+
+	static	string to_string(sc2::Race  race)
+	{
+		switch (race) {
+		case Terran: return "Terran";
+		case Zerg: return "Zerg";
+		case Protoss: return "Protoss";
+		case Random: return "Random";
+		default: return "Unknown";
+		}
+	}
+
+
+	static string debugUnitTypeData(const UnitTypeData& ud) {
+
+		string ret = "UnitTypeData {\n";
+		ret += "  unit_type_id: " + std::to_string(ud.unit_type_id) + "\n";
+		ret += "  name: " + (ud.name) + "\n";
+		ret += "  available: " + std::to_string(ud.available) + "\n";
+		ret += "  cargo_size: " + std::to_string(ud.cargo_size) + "\n";
+		ret += "  mineral_cost: " + std::to_string(ud.mineral_cost) + "\n";
+		ret += "  vespene_cost: " + std::to_string(ud.vespene_cost) + "\n";
+		ret += "  attributes: [";
+		for (auto a : ud.attributes)
+		{
+			ret += to_string(a) + ", ";
+		}
+		ret += "]\n";
+
+		ret += "  movement_speed: " + std::to_string(ud.movement_speed) + "\n";
+		ret += "  armor: " + std::to_string(ud.armor) + "\n";
+
+		ret += "  weapons: [";
+		for (auto w : ud.weapons)
+		{
+			ret += to_string(w) + ", ";
+		}
+		ret += "]\n";
+
+		ret += "  food_required: " + std::to_string(ud.food_required) + "\n";
+		ret += "  food_provided: " + std::to_string(ud.food_provided) + "\n";
+		ret += "  ability_id: " + std::to_string(ud.ability_id) + "\n";
+		ret += "  race: " + to_string(ud.race) + "\n";
+		ret += "  build_time: " + std::to_string(ud.build_time) + "\n";
+		ret += "  has_minerals: " + std::to_string(ud.has_minerals) + "\n";
+		ret += "  has_vespene: " + std::to_string(ud.has_vespene) + "\n";
+		ret += "  sight_range: " + std::to_string(ud.sight_range) + "\n";
+
+		ret += "  tech_alias: [";
+		for (auto ta : ud.tech_alias)
+		{
+			ret += std::to_string(ta) + ", ";
+		}
+		ret += "]\n";
+		ret += "  unit_alias: " + std::to_string(ud.unit_alias) + "\n";
+		ret += "  tech_requirement: " + std::to_string(ud.tech_requirement) + "\n";
+		ret += "  require_attached: " + std::to_string(ud.require_attached) + "\n";
+
+		ret += "}\n";
+
+		return ret;
+	}
+
+
+	static string to_string(sc2::AbilityData::Target t)
+	{
+		switch (t)
+		{
+		case sc2::AbilityData::Target::None: return "None";
+		case sc2::AbilityData::Target::Point: return "Point";
+		case sc2::AbilityData::Target::Unit: return "Unit";
+		case sc2::AbilityData::Target::PointOrUnit: return "PointOrUnit";
+		case sc2::AbilityData::Target::PointOrNone: return "PointOrNone";
+		default: return "Unknown";
+		}
+	}
+
+	static string debugAbilityData(const AbilityData& a)
+	{
+		string ret = "AbilityData {\n";
+		ret += "  available: " + std::to_string(a.available) + "\n";
+		ret += "  ability_id: " + std::to_string(a.ability_id) + "\n";
+		ret += "  link_name: " + (a.link_name) + "\n";
+		ret += "  link_index: " + std::to_string(a.link_index) + "\n";
+		ret += "  button_name: " + (a.button_name) + "\n";
+		ret += "  friendly_name: " + (a.friendly_name) + "\n";
+		ret += "  hotkey: " + (a.hotkey) + "\n";
+		ret += "  remaps_to_ability_id: " + std::to_string(a.remaps_to_ability_id) + "\n";
+		ret += "  remaps_from_ability_id: [";
+		for (auto r : a.remaps_from_ability_id)
+		{
+			ret += std::to_string(r) + ", ";
+		}
+		ret += "]\n";
+		ret += "  target: " + to_string(a.target) + "\n";
+		ret += "  allow_autocast: " + std::to_string(a.allow_autocast) + "\n";
+		ret += "  is_building: " + std::to_string(a.is_building) + "\n";
+		ret += "  footprint_radius: " + std::to_string(a.footprint_radius) + "\n";
+		ret += "  is_instant_placement: " + std::to_string(a.is_instant_placement) + "\n";
+		ret += "  cast_range: " + std::to_string(a.cast_range) + "\n";
+
+		ret += "}\n";
+		return ret;
+	}
+
+
 
 	void BotKillerQueen::OnGameFullStart()
 	{
@@ -3361,7 +3498,55 @@ namespace sc2 {
 	void BotKillerQueen::OnStep()
 	{
 		const auto* obs = Observation();
-		// cout << "OnStep(): " << obs->GetGameLoop() << endl;
+
+		if (obs->GetGameLoop() == 0)
+		{
+			auto os = ofstream("data\\stuff.log");
+
+			os << "Abilities:" << endl;
+			for (const auto& a : obs->GetAbilityData())
+			{
+				os << debugAbilityData(a) << endl;
+
+			}
+			os << "====================" << endl;
+
+			os << "UnitTypes:" << endl;
+			for (const auto& u : obs->GetUnitTypeData())
+			{
+				os << debugUnitTypeData(u) << endl;
+			}
+			os << "====================" << endl;
+
+			os << "Upgrades:" << endl;
+			for (const auto& u : obs->GetUpgradeData())
+			{
+				os << u.Log() << endl;
+			}
+			os << "====================" << endl;
+
+			os << "Buffs:" << endl;
+			for (const auto& b : obs->GetBuffData())
+			{
+				os << b.Log() << endl;
+
+			}
+			os << "====================" << endl;
+
+			os << "Effects:" << endl;
+			for (const auto& e : obs->GetEffectData())
+			{
+				os << e.Log() << endl;
+
+			}
+			os << "====================" << endl;
+
+			os.flush();
+			os.close();
+		}
+
+
+
 
 		this->iteration = obs->GetGameLoop();
 
