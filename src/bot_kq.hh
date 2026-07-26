@@ -7,10 +7,12 @@
 #include "sc2_unit_filters.h"
 #include "sc2_utils.h"
 
+#include "unit_data.h"
+
 namespace sc2 {
 
 
-	class BotKillerQueen : public sc2::Agent {
+	class BotKillerQueen final : public sc2::Agent {
 	public:
 		virtual void OnGameFullStart() final;
 		virtual void OnGameStart() final;
@@ -29,6 +31,9 @@ namespace sc2 {
 		virtual void OnError(const std::vector<ClientError>& /*client_errors*/, const std::vector<std::string>& /*protocol_errors*/) final;
 
 	private:
+		void stuffTodoOnGameStart();
+		void buildUnitInfo();
+
 		void PreventSupplyBlock(const ObservationInterface* obs);
 
 		void BuildSpawnPoolIfPossible();
@@ -49,9 +54,54 @@ namespace sc2 {
 
 		void sendWorkerToClosestMineralPatch(const Unit* worker);
 
+
+		void buildGases();
+
+
+
+
 	private:
-		uint32_t iteration = 0;
 		std::vector<Point3D> expansions_;
+		sc2::UnitTypes unitinfo_;
+		sc2::Abilities abilities_;
+		sc2::Upgrades upgrades_;
+		sc2::Buffs buffs_;
+		sc2::Effects effects_;
+
+
+		ABILITY_ID get_production_ability(UNIT_TYPEID unit) const;
+		std::vector<UNIT_TYPEID> get_requirements(UNIT_TYPEID unit) const;
+
+		inline Units get_pending_units(const ObservationInterface* obs, UNIT_TYPEID type)
+		{
+			auto ability = get_production_ability(type);
+			auto f = [type, ability](const Unit& unit) -> bool {
+				if (unit.unit_type.ToType() == UNIT_TYPEID::ZERG_EGG)
+				{
+					if (unit.orders.empty())
+					{
+						// can this even happen?
+						return false;
+					}
+
+					return unit.orders[0].ability_id == AbilityID(ability);
+				}
+				else if ((unit.unit_type.ToType() != type))
+				{
+					return false;
+				}
+
+				return unit.build_progress < 1.0;
+
+				};
+			return obs->GetUnits(Unit::Alliance::Self, f);
+		}
+
+		inline Units get_ready_units(const ObservationInterface* obs, UNIT_TYPEID type)
+		{
+			auto f = [type](const Unit& unit) { return unit.build_progress == 1.0 && IsUnit{ type }(unit); };
+			return obs->GetUnits(Unit::Alliance::Self, f);
+		}
 
 		inline bool CanPathToLocation(const sc2::Unit* unit, sc2::Point2D& target_pos) {
 			// Send a pathing query from the unit to that point. Can also query from point to point,
@@ -195,7 +245,7 @@ namespace sc2 {
 				auto closest = closest_expansions[i];
 
 				if (TryBuildStructure(build_ability, worker_type, closest, true) &&
-				observation->GetUnits(Unit::Self, sc2::IsTownHall()).size() < 4) {
+					observation->GetUnits(Unit::Self, sc2::IsTownHall()).size() < 4) {
 					staging_location_ = Point3D(((staging_location_.x + closest.x) / 2),
 						((staging_location_.y + closest.y) / 2),
 						((staging_location_.z + closest.z) / 2));
@@ -313,7 +363,7 @@ namespace sc2 {
 				return true;
 			}
 			else {
-			return false;
+				return false;
 			}
 		}
 

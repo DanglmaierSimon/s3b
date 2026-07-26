@@ -29,6 +29,47 @@ using namespace std;
 
 namespace
 {
+	struct GasInfo {
+		int wanted_geysers;
+		int gas_workers;
+	};
+
+	constexpr GasInfo get_gas_info(int assigned_workers)
+	{
+		switch (assigned_workers)
+		{
+			// to early for gas
+		case 0: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 1: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 2: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 3: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 4: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 5: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 6: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 7: return { .wanted_geysers = 0, .gas_workers = 0 };
+		case 8: return { .wanted_geysers = 0, .gas_workers = 0 };
+
+			  // 1 gas
+		case 9: return  { .wanted_geysers = 1, .gas_workers = 1 };
+		case 10: return { .wanted_geysers = 1, .gas_workers = 1 };
+		case 11: return { .wanted_geysers = 1, .gas_workers = 1 };
+		case 12: return { .wanted_geysers = 1, .gas_workers = 1 };
+		case 13: return { .wanted_geysers = 1, .gas_workers = 2 };
+		case 14: return { .wanted_geysers = 1, .gas_workers = 2 };
+		case 15: return { .wanted_geysers = 1, .gas_workers = 3 };
+		case 16: return { .wanted_geysers = 1, .gas_workers = 3 };
+
+			   // 2 gases
+		case 17: return { .wanted_geysers = 2, .gas_workers = 4 };
+		case 18: return { .wanted_geysers = 2, .gas_workers = 4 };
+		case 19: return { .wanted_geysers = 2, .gas_workers = 5 };
+		case 20: return { .wanted_geysers = 2, .gas_workers = 6 };
+
+			   // oversaturated
+		default:
+			return { .wanted_geysers = 2, .gas_workers = 6 };
+		}
+	}
 
 	static string to_string(sc2::Attribute a)
 	{
@@ -94,7 +135,7 @@ namespace
 		ret += "  armor: " + std::to_string(ud.armor) + "\n";
 
 		ret += "  weapons: [";
-		for (auto w : ud.weapons)
+		for (const auto& w : ud.weapons)
 		{
 			ret += to_string(w) + ", ";
 		}
@@ -215,56 +256,11 @@ namespace sc2 {
 
 		if (obs->GetGameLoop() == 0)
 		{
-			auto os = ofstream("data\\stuff.log");
+			stuffTodoOnGameStart();
 
-			os << "Abilities:" << endl;
-			for (const auto& a : obs->GetAbilityData())
-			{
-				os << debugAbilityData(a) << endl;
-
-			}
-			os << "====================" << endl;
-
-			os << "UnitTypes:" << endl;
-			for (const auto& u : obs->GetUnitTypeData())
-			{
-				os << debugUnitTypeData(u) << endl;
-			}
-			os << "====================" << endl;
-
-			os << "Upgrades:" << endl;
-			for (const auto& u : obs->GetUpgradeData())
-			{
-				os << u.Log() << endl;
-			}
-			os << "====================" << endl;
-
-			os << "Buffs:" << endl;
-			for (const auto& b : obs->GetBuffData())
-			{
-				os << b.Log() << endl;
-
-			}
-			os << "====================" << endl;
-
-			os << "Effects:" << endl;
-			for (const auto& e : obs->GetEffectData())
-			{
-				os << e.Log() << endl;
-
-			}
-			os << "====================" << endl;
-
-			os.flush();
-			os.close();
 		}
 
-
-
-
-		this->iteration = obs->GetGameLoop();
-
-		if (this->iteration < 10)
+		if (Observation()->GetGameLoop() < 10)
 		{
 			for (auto sl : obs->GetGameInfo().enemy_start_locations)
 			{
@@ -391,6 +387,66 @@ namespace sc2 {
 
 	}
 
+	void BotKillerQueen::stuffTodoOnGameStart()
+	{
+		auto obs = Observation();
+
+		auto os = ofstream("data\\stuff.log");
+
+		os << "Abilities:" << endl;
+		for (const auto& a : obs->GetAbilityData())
+		{
+			os << debugAbilityData(a) << endl;
+
+		}
+		os << "====================" << endl;
+
+		os << "UnitTypes:" << endl;
+		for (const auto& u : obs->GetUnitTypeData())
+		{
+			os << debugUnitTypeData(u) << endl;
+		}
+		os << "====================" << endl;
+
+		os << "Upgrades:" << endl;
+		for (const auto& u : obs->GetUpgradeData())
+		{
+			os << u.Log() << endl;
+		}
+		os << "====================" << endl;
+
+		os << "Buffs:" << endl;
+		for (const auto& b : obs->GetBuffData())
+		{
+			os << b.Log() << endl;
+
+		}
+		os << "====================" << endl;
+
+		os << "Effects:" << endl;
+		for (const auto& e : obs->GetEffectData())
+		{
+			os << e.Log() << endl;
+
+		}
+		os << "====================" << endl;
+
+		os.flush();
+		os.close();
+
+
+		buildUnitInfo();
+	}
+
+	void BotKillerQueen::buildUnitInfo()
+	{
+		unitinfo_ = Observation()->GetUnitTypeData();
+		abilities_ = Observation()->GetAbilityData();
+		upgrades_ = Observation()->GetUpgradeData();
+		buffs_ = Observation()->GetBuffData();
+		effects_ = Observation()->GetEffectData();
+	}
+
 	void BotKillerQueen::PreventSupplyBlock(const ObservationInterface* obs)
 	{
 
@@ -478,7 +534,7 @@ namespace sc2 {
 
 		auto calculated_workers = std::accumulate(hatcheries.cbegin(), hatcheries.cend(), 0, [](int val, const Unit* unit) { if (unit->alliance != Unit::Alliance::Self) { return val; } return unit->ideal_harvesters + val; });
 		auto optimal_worker_count = std::min(calculated_workers, 70);
-		auto current_workers = obs->GetFoodWorkers();
+		auto current_workers = (int)obs->GetFoodWorkers();
 
 		// todo: distribute workers evenly to bases
 		auto larva = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA));
@@ -530,8 +586,8 @@ namespace sc2 {
 
 		auto targets = obs->GetUnits([](const Unit& unit)->bool {return unit.alliance == Unit::Alliance::Enemy;});
 
+		// intentional copy
 		auto start_locations = obs->GetGameInfo().enemy_start_locations;
-
 
 		if (queens.empty())
 		{
@@ -551,7 +607,7 @@ namespace sc2 {
 
 			auto tumors = obs->GetUnits(IsUnits{ { UNIT_TYPEID::ZERG_CREEPTUMOR, UNIT_TYPEID::ZERG_CREEPTUMOR, UNIT_TYPEID::ZERG_CREEPTUMORBURROWED, UNIT_TYPEID::ZERG_HATCHERY} });
 
-			auto closest_tumor = get_closest_unit(obs, offset, tumors);
+			auto closest_tumor = get_closest_unit(offset, tumors);
 			auto distance = 0.0;
 
 			if (closest_tumor)
@@ -724,6 +780,75 @@ namespace sc2 {
 		{
 			Actions()->UnitCommand(worker, ABILITY_ID::SMART, &*closest_min_patch);
 		}
+	}
+
+	void BotKillerQueen::buildGases()
+	{
+		auto bases = Observation()->GetUnits(IsTownHall{});
+
+
+
+
+		for (auto base : bases)
+		{
+			auto gas_info = get_gas_info(base->assigned_harvesters);
+			// build new gases
+
+			auto geysers = Observation()->GetUnits(Unit::Alliance::Neutral, IsUnits{ {UNIT_TYPEID::NEUTRAL_VESPENEGEYSER,
+																					  UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER ,
+																						UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER,
+																						UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER,
+																						UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER,
+																						UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER,UNIT_TYPEID::NEUTRAL_VESPENEGEYSER} });
+
+		}
+
+		for (auto base : bases)
+		{
+
+		}
+
+	}
+
+	ABILITY_ID BotKillerQueen::get_production_ability(UNIT_TYPEID unit) const
+	{
+		auto& unitinfo = unitinfo_.at(static_cast<int>(unit));
+		auto id = unitinfo.ability_id;
+
+		if (id == ABILITY_ID::INVALID)
+		{
+			cout << "WARN: " << "Unit " << UnitTypeToName(UnitTypeID(id)) << " does not have a production_ability!" << endl;
+			return id;
+		}
+
+		cout << "DEBUG: " << "Unit " << UnitTypeToName(UnitTypeID(id)) << "is produced by Ability " << AbilityTypeToName(id) << endl;
+		return id;
+	}
+
+	std::vector<UNIT_TYPEID> BotKillerQueen::get_requirements(UNIT_TYPEID unit) const
+	{
+		std::vector<UNIT_TYPEID> ret;
+
+		UNIT_TYPEID unit_to_check = unit;
+		while (true)
+		{
+			auto& unitinfo = unitinfo_.at(static_cast<int>(unit_to_check));
+
+			if (static_cast<int>(unitinfo.tech_requirement) == 0)
+			{
+				break;
+			}
+			else
+			{
+				ret.push_back(unitinfo.tech_requirement);
+			}
+
+			unit_to_check = unitinfo.tech_requirement;
+		}
+
+		std::reverse(ret.begin(), ret.end());
+
+		return ret;
 	}
 
 	bool BotKillerQueen::TryBuildUnit(AbilityID ability_type_for_unit, UnitTypeID unit_type) {
