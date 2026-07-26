@@ -12,7 +12,9 @@
 #include "sc2lib/sc2_lib.h"
 
 #include "utils.h"
+#include <fstream>
 #include <numeric>
+#include <ostream>
 
 using namespace std;
 
@@ -3492,7 +3494,19 @@ namespace sc2 {
 	{
 		cout << "OnGameStart()" << endl;
 
-		expansions_ = search::CalculateExpansionLocations(Observation(), Query());
+		auto params = search::ExpansionParameters();
+		//params.circle_step_size_ = 0.25;
+		//params.radiuses_ = { 2,3,4,5,6,7,9 };
+		//params.cluster_distance_ = 14;
+		params.debug_ = Debug();
+
+		expansions_ = search::CalculateExpansionLocations(Observation(), Query(), params);
+		Debug()->SendDebug();
+		cout << "calculated expansion locations" << endl;
+
+		auto start = Observation()->GetStartLocation();
+
+		std::sort(expansions_.begin(), expansions_.end(), [start](const sc2::Point3D& l, const sc2::Point3D& r) {return DistanceSquared3D(start, l) < DistanceSquared3D(start, r);});
 	}
 
 	void BotKillerQueen::OnStep()
@@ -3855,12 +3869,6 @@ namespace sc2 {
 		{
 			for (auto q : queens)
 			{
-				//auto abilities = Query()->GetAbilitiesForUnit(q);
-				//for (auto a : abilities.abilities) {
-				//	cout << "Unit: " << to_string(*q) << endl;
-				//	cout << "Ability: " << AbilityTypeToName(AbilityID(a.ability_id)) << "[" << (int)a.ability_id << "]" << endl;
-				//}
-
 				if (q->orders.empty())
 				{
 					auto target = GetRandomEntry(start_locations);
@@ -3882,84 +3890,6 @@ namespace sc2 {
 
 			}
 		}
-
-
-
-
-
-		/*
-		queens = self.units.filter(lambda unit : unit.type_id == UnitTypeId.QUEEN)
-
-			targets = self.enemy_structures + self.enemy_units
-
-			if len(targets) == 0:
-		self.target_list_empty_previously = True
-			for queen in queens :
-		if queen.is_active :
-			continue
-
-			for loc in self.enemy_start_locations :
-				queen.attack(loc, True)
-		else:
-		if self.target_list_empty_previously :
-			self.target_list_empty_previously = False
-			for queen in queens :
-		queen.stop()
-
-			tumors = (
-				(self.structures)
-				.filter(
-					lambda structure : structure.type_id
-					in[
-						UnitTypeId.CREEPTUMORQUEEN,
-						UnitTypeId.CREEPTUMORBURROWED,
-						UnitTypeId.CREEPTUMORMISSILE,
-					]
-					)
-				.amount
-				)
-
-			for queen in queens :
-
-		if queen.is_attacking :
-			continue
-
-			has_creep = self.has_creep(queen.position)
-
-			if tumors < 100 :
-				creep_position = await self.find_placement(
-					AbilityId.BUILD_CREEPTUMOR_TUMOR,
-					queen.position,
-					max_distance = 1,
-					random_alternative = True,
-					)
-
-				is_not_using = not queen.is_using_ability(
-					AbilityId.BUILD_CREEPTUMOR_QUEEN
-				)
-
-				if has_creep and is_not_using and creep_position is not None:
-		self.do(
-			unit_command.UnitCommand(
-				AbilityId.BUILD_CREEPTUMOR_QUEEN,
-				queen,
-				creep_position,
-				False,
-				),
-			False,
-			False,
-			False,
-			False,
-			)
-
-			es = targets.random_or(None)
-			if es:
-		self.target_list_empty_previously = False
-			if not queen.is_attacking :
-				queen.attack(es.position)
-
-				*/
-
 	}
 
 	void BotKillerQueen::SpreadCreep()
@@ -3983,9 +3913,7 @@ namespace sc2 {
 				continue;
 			}
 
-			auto assigned_workers = source_hatchery->assigned_harvesters;
-
-			if (assigned_workers > source_hatchery->ideal_harvesters && assigned_workers != 0)
+			if (source_hatchery->assigned_harvesters > source_hatchery->ideal_harvesters && source_hatchery->assigned_harvesters != 0)
 			{
 				for (const auto& target_hatch : hatcheries)
 				{
@@ -4023,11 +3951,11 @@ namespace sc2 {
 
 					cout << "Dist Workers: Moving worker " << to_string(*closest_worker) << " to " << to_string(*closest_min_patch) << endl;
 					Actions()->UnitCommand(closest_worker, ABILITY_ID::SMART, &*closest_min_patch);
-					//Debug()->DebugTextOut(std::to_string(closest_worker->tag), closest_worker->pos, Colors::Yellow);
-					//Debug()->DebugSphereOut(closest_min_patch->pos, 1, Colors::Green);
-					//Debug()->DebugLineOut(closest_worker->pos, closest_min_patch->pos, Colors::Red);
-					//Debug()->SendDebug();
-				//	Actions()->SendActions();
+					Debug()->DebugTextOut(std::to_string(closest_worker->tag), closest_worker->pos, Colors::Yellow);
+					Debug()->DebugSphereOut(closest_min_patch->pos, 1, Colors::Green);
+					Debug()->DebugLineOut(closest_worker->pos, closest_min_patch->pos, Colors::Red);
+					Debug()->SendDebug();
+					//	Actions()->SendActions();
 					return;
 				}
 			}
@@ -4037,7 +3965,23 @@ namespace sc2 {
 
 	const Unit* BotKillerQueen::find_closest_mineral_patch(const Point2D& pos)
 	{
-		Units units = Observation()->GetUnits(Unit::Alliance::Neutral);
+		auto f = [](const Unit& u) -> bool {
+			return u.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750 ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_RICHMINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_RICHMINERALFIELD750 ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_PURIFIERMINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_PURIFIERMINERALFIELD750 ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_PURIFIERRICHMINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_PURIFIERRICHMINERALFIELD750 ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD750 ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_BATTLESTATIONMINERALFIELD ||
+				u.unit_type == UNIT_TYPEID::NEUTRAL_BATTLESTATIONMINERALFIELD750;
+			};
+
+
+		Units units = Observation()->GetUnits(Unit::Alliance::Neutral, f);
 		float distance = std::numeric_limits<float>::max();
 		const Unit* target = nullptr;
 		for (const auto& u : units) {
