@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
 		"TorchesAIE_v4.SC2Map",
 	};
 
-	auto pool_size = std::size(map_pool);
+	auto pool_size = (int)std::size(map_pool);
 
 	int low_dist = 0;
 	int high_dist = pool_size;
