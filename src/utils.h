@@ -11,6 +11,11 @@
 
 namespace sc2 {
 
+std::string to_string(const sc2::Point2D &p) {
+  std::string ret = "Point2D { x: " + std::to_string(p.x) + ", y: " + std::to_string(p.y) + "}";
+  return ret;
+}
+
 inline Units get_pending_buildings(const ObservationInterface *obs, const sc2::Filter &filter) {
   auto f = [&filter](const Unit &unit) -> bool {
     return unit.is_alive && unit.build_progress < 1.0 && is_building(unit) && filter(unit);

@@ -55,6 +55,13 @@ private:
 
   void buildGases();
 
+  void buildGasAtBase(sc2::Point3D &base_location);
+
+  Units get_units_closer_than(Unit::Alliance alliance, const Filter &f, const Point2D &pos, float distance);
+  Units get_units_closer_than(Unit::Alliance alliance, UNIT_TYPEID type, const Point2D &pos, float distance);
+
+  bool can_cast(const Unit *unit, ABILITY_ID id);
+
 private:
   std::vector<Point3D> expansions_;
   sc2::UnitTypes       unitinfo_;
@@ -121,7 +128,7 @@ private:
   }
 
   // Try build structure given a location. This is used most of the time
-  inline bool TryBuildStructure(AbilityID ability_type_for_structure, UnitTypeID unit_type, Point2D location,
+  inline bool TryBuildStructure(AbilityID ability_type_for_structure, UnitTypeID unit_type, Point3D location,
                                 bool isExpansion = false) {
     const ObservationInterface *observation = Observation();
     Units                       workers = observation->GetUnits(Unit::Alliance::Self, sc2::IsUnit(unit_type));
@@ -144,6 +151,7 @@ private:
     const Unit *unit = GetRandomEntry(workers);
 
     // Check to see if unit can make it there
+
     if (Query()->PathingDistance(unit, location) < 0.1f) {
       return false;
     }
@@ -158,6 +166,7 @@ private:
     // Check to see if unit can build there
     if (Query()->Placement(ability_type_for_structure, location)) {
       Actions()->UnitCommand(unit, ability_type_for_structure, location);
+      Actions()->SendActions();
       return true;
     }
     return false;
@@ -169,7 +178,7 @@ private:
     const auto *observation = Observation();
     auto        start_location = observation->GetStartLocation();
 
-    Point2D build_location = Point2D(start_location.x + rx * 15, start_location.y + ry * 15);
+    Point3D build_location = Point3D(start_location.x + rx * 15, start_location.y + ry * 15, start_location.z);
 
     if (observation->HasCreep(build_location)) {
       return TryBuildStructure(ability_type_for_structure, unit_type, build_location);

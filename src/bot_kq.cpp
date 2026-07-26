@@ -23,30 +23,30 @@
 using namespace std;
 
 namespace {
+
+constexpr float GEYSER_SEARCH_DISTANCE = 20.0;
+
 struct GasInfo {
   int wanted_geysers;
   int gas_workers;
 };
 
-constexpr GasInfo get_gas_info(int assigned_workers) {
+constexpr GasInfo get_gas_info(int assigned_workers, int ideal_harvesters) {
+
+  if (assigned_workers == ideal_harvesters) {
+    return {.wanted_geysers = 2, .gas_workers = 6};
+  }
+
   switch (assigned_workers) {
     // to early for gas
   case 0:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 1:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 2:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 3:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 4:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 5:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 6:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 7:
-    return {.wanted_geysers = 0, .gas_workers = 0};
   case 8:
     return {.wanted_geysers = 0, .gas_workers = 0};
 
@@ -58,24 +58,15 @@ constexpr GasInfo get_gas_info(int assigned_workers) {
   case 11:
     return {.wanted_geysers = 1, .gas_workers = 1};
   case 12:
-    return {.wanted_geysers = 1, .gas_workers = 1};
+    return {.wanted_geysers = 1, .gas_workers = 2};
   case 13:
-    return {.wanted_geysers = 1, .gas_workers = 2};
+    return {.wanted_geysers = 1, .gas_workers = 3};
+  // 2 gas
   case 14:
-    return {.wanted_geysers = 1, .gas_workers = 2};
+    return {.wanted_geysers = 2, .gas_workers = 4};
   case 15:
-    return {.wanted_geysers = 1, .gas_workers = 3};
-  case 16:
-    return {.wanted_geysers = 1, .gas_workers = 3};
-
-    // 2 gases
-  case 17:
-    return {.wanted_geysers = 2, .gas_workers = 4};
-  case 18:
-    return {.wanted_geysers = 2, .gas_workers = 4};
-  case 19:
     return {.wanted_geysers = 2, .gas_workers = 5};
-  case 20:
+  case 16:
     return {.wanted_geysers = 2, .gas_workers = 6};
 
     // oversaturated
@@ -295,6 +286,8 @@ void BotKillerQueen::OnStep() {
   AttackWithQueens();
 
   SpreadCreep();
+
+  buildGases();
 }
 
 static string to_string(const Unit &unit) {
@@ -464,7 +457,7 @@ void sc2::BotKillerQueen::BuildSpawnPoolIfPossible() {
   }
 
   if (get_pending_buildings(obs, IsUnit(UNIT_TYPEID::ZERG_SPAWNINGPOOL)).size() > 0 ||
-      obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_SPAWNINGPOOL)).size() > 0) {
+      obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_SPAWNINGPOOL)).size() > 0) {
     return;
   }
 
@@ -492,7 +485,7 @@ void sc2::BotKillerQueen::BuildWorkers() {
     return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY);
   });
   auto       hatch_count = hatcheries.size();
-  auto       larva_count = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
+  auto       larva_count = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
   auto       pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
   if (larva_count == 0 || pending_workers > hatch_count) {
     return;
@@ -508,7 +501,7 @@ void sc2::BotKillerQueen::BuildWorkers() {
   auto current_workers = (int)obs->GetFoodWorkers();
 
   // todo: distribute workers evenly to bases
-  auto larva = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_LARVA));
+  auto larva = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_LARVA));
 
   if (!larva.empty() && can_afford(obs, UNIT_TYPEID::ZERG_DRONE) && current_workers < optimal_worker_count) {
     if (train(obs, Actions(), Query(), UNIT_TYPEID::ZERG_DRONE)) {
@@ -518,18 +511,20 @@ void sc2::BotKillerQueen::BuildWorkers() {
     }
   }
 
-  for (auto hatch : hatcheries) {
-    if (hatch->assigned_harvesters > hatch->ideal_harvesters) {
-      distributeWorkers();
-      break;
-    }
-  }
+  distributeWorkers();
+
+  // for (auto hatch : hatcheries) {
+  //   if (hatch->assigned_harvesters > hatch->ideal_harvesters) {
+  //     break;
+  //   }
+  // }
 }
 
 void BotKillerQueen::BuildQueens() {
   auto spawning_pools = Observation()
                             ->GetUnits([](const Unit &unit) -> bool {
-                              return unit.build_progress == 1.0 && IsUnit{UNIT_TYPEID::ZERG_SPAWNINGPOOL}(unit);
+                              return unit.alliance == Unit::Alliance::Self && unit.build_progress == 1.0 &&
+                                     IsUnit{UNIT_TYPEID::ZERG_SPAWNINGPOOL}(unit);
                             })
                             .size();
 
@@ -548,7 +543,7 @@ void BotKillerQueen::BuildQueens() {
 void BotKillerQueen::AttackWithQueens() {
   auto obs = Observation();
 
-  auto queens = obs->GetUnits(IsUnit(UNIT_TYPEID::ZERG_QUEEN));
+  auto queens = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_QUEEN));
 
   auto targets = obs->GetUnits([](const Unit &unit) -> bool { return unit.alliance == Unit::Alliance::Enemy; });
 
@@ -569,11 +564,12 @@ void BotKillerQueen::AttackWithQueens() {
 
     auto offset = Point2D(random_queen->pos.x + dx, random_queen->pos.y + dy);
 
-    auto tumors = obs->GetUnits(IsUnits{
-        {UNIT_TYPEID::ZERG_CREEPTUMOR,
-         UNIT_TYPEID::ZERG_CREEPTUMOR,
-         UNIT_TYPEID::ZERG_CREEPTUMORBURROWED,
-         UNIT_TYPEID::ZERG_HATCHERY}
+    auto tumors = obs->GetUnits(Unit::Alliance::Self,
+                                IsUnits{
+                                    {UNIT_TYPEID::ZERG_CREEPTUMOR,
+                                     UNIT_TYPEID::ZERG_CREEPTUMOR,
+                                     UNIT_TYPEID::ZERG_CREEPTUMORBURROWED,
+                                     UNIT_TYPEID::ZERG_HATCHERY}
     });
 
     auto closest_tumor = get_closest_unit(offset, tumors);
@@ -583,7 +579,7 @@ void BotKillerQueen::AttackWithQueens() {
       distance = Distance2D(closest_tumor->pos, offset);
     }
 
-    if (distance > 8) {
+    if (distance > 8 && can_cast(random_queen, ABILITY_ID::BUILD_CREEPTUMOR_QUEEN)) {
       Actions()->UnitCommand(random_queen, ABILITY_ID::BUILD_CREEPTUMOR_QUEEN, offset);
     }
   }
@@ -609,18 +605,56 @@ void BotKillerQueen::AttackWithQueens() {
 
 void BotKillerQueen::SpreadCreep() {}
 
-inline static string to_string(const Point2D &p2) {
-  return "Point2D { x: " + std::to_string(p2.x) + ", y: " + std::to_string(p2.y) + " }";
-}
-
 void BotKillerQueen::distributeWorkers() {
-  auto hatcheries = Observation()->GetUnits(IsTownHall{});
+  auto hatcheries = Observation()->GetUnits(Unit::Alliance::Self, IsTownHall{});
 
   for (const auto &source_hatchery : hatcheries) {
     if (source_hatchery->build_progress < 1.0) {
       continue;
     }
 
+    // distribute workers to gas extractors
+    auto gas_info = get_gas_info(source_hatchery->assigned_harvesters, source_hatchery->ideal_harvesters);
+    auto extractor_filter = IsUnits{
+        {UNIT_TYPEID::ZERG_EXTRACTORRICH, UNIT_TYPEID::ZERG_EXTRACTOR}
+    };
+
+    auto extractors = get_units_closer_than(Unit::Alliance::Self, extractor_filter, source_hatchery->pos, GEYSER_SEARCH_DISTANCE);
+
+    auto total_gas_miners = 0;
+
+    for (auto ex : extractors) {
+      total_gas_miners += ex->assigned_harvesters;
+    }
+
+    if (total_gas_miners < gas_info.gas_workers) {
+      for (auto ex : extractors) {
+        if (ex->build_progress < 1.0) {
+          continue;
+        }
+
+        if (ex->assigned_harvesters < 3) {
+
+          auto close_workers = get_units_closer_than(Unit::Alliance::Self, UNIT_TYPEID::ZERG_DRONE, source_hatchery->pos, 4);
+
+          if (close_workers.empty()) {
+            continue;
+          }
+
+          auto worker = GetRandomEntry(close_workers);
+
+          if (worker) {
+            if (!IsCarryingMinerals(*worker)) {
+
+              Actions()->UnitCommand(worker, ABILITY_ID::SMART, ex);
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    // distribute workers to other bases
     if (source_hatchery->assigned_harvesters > source_hatchery->ideal_harvesters && source_hatchery->assigned_harvesters != 0) {
       for (const auto &target_hatch : hatcheries) {
         if (target_hatch->build_progress < 1.0) {
@@ -653,10 +687,10 @@ void BotKillerQueen::distributeWorkers() {
 
         cout << "Dist Workers: Moving worker " << to_string(*closest_worker) << " to " << to_string(*closest_min_patch) << endl;
         Actions()->UnitCommand(closest_worker, ABILITY_ID::SMART, &*closest_min_patch);
-        Debug()->DebugTextOut(std::to_string(closest_worker->tag), closest_worker->pos, Colors::Yellow);
-        Debug()->DebugSphereOut(closest_min_patch->pos, 1, Colors::Green);
-        Debug()->DebugLineOut(closest_worker->pos, closest_min_patch->pos, Colors::Red);
-        Debug()->SendDebug();
+        // Debug()->DebugTextOut(std::to_string(closest_worker->tag), closest_worker->pos, Colors::Yellow);
+        // Debug()->DebugSphereOut(closest_min_patch->pos, 1, Colors::Green);
+        // Debug()->DebugLineOut(closest_worker->pos, closest_min_patch->pos, Colors::Red);
+        // Debug()->SendDebug();
         //	Actions()->SendActions();
         return;
       }
@@ -718,10 +752,10 @@ void BotKillerQueen::sendWorkerToClosestMineralPatch(const Unit *worker) {
 }
 
 void BotKillerQueen::buildGases() {
-  auto bases = Observation()->GetUnits(IsTownHall{});
+  auto bases = Observation()->GetUnits(Unit::Alliance::Self, IsTownHall{});
 
   for (auto base : bases) {
-    auto gas_info = get_gas_info(base->assigned_harvesters);
+    auto gas_info = get_gas_info(base->assigned_harvesters, base->ideal_harvesters);
     // build new gases
 
     auto filter = IsUnits{
@@ -733,11 +767,108 @@ void BotKillerQueen::buildGases() {
          UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER,
          UNIT_TYPEID::NEUTRAL_VESPENEGEYSER}
     };
-    auto geysers = Observation()->GetUnits(Unit::Alliance::Neutral, filter);
+
+    auto geysers = get_units_closer_than(Unit::Alliance::Neutral, filter, base->pos, GEYSER_SEARCH_DISTANCE);
+
+    if (geysers.size() > 2) {
+      cout << "WARN: Found more than 2 gases at " << to_string(base->pos) << endl;
+      return;
+    }
+
+    if (geysers.empty()) {
+      continue;
+    }
+
+    int free_gases = 0;
+
+    for (auto g : geysers) {
+      if (!Query()->Placement(ABILITY_ID::BUILD_EXTRACTOR, g->pos)) {
+        // extractor there already
+        continue;
+      }
+      free_gases += 1;
+    }
+
+    auto extractors_built = 2 - free_gases;
+
+    if (gas_info.wanted_geysers > extractors_built) {
+      auto pos = (base->pos);
+      cout << "Base at " << to_string(base->pos) << " has only " << extractors_built << " gases, but want "
+           << gas_info.wanted_geysers << endl;
+      buildGasAtBase(pos);
+    }
+  }
+}
+
+void BotKillerQueen::buildGasAtBase(sc2::Point3D &base_location) {
+
+  auto filter = IsUnits{
+      {UNIT_TYPEID::NEUTRAL_VESPENEGEYSER,
+       UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER,
+       UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER,
+       UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER,
+       UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER,
+       UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER,
+       UNIT_TYPEID::NEUTRAL_VESPENEGEYSER}
+  };
+
+  auto geysers = Observation()->GetUnits(Unit::Alliance::Neutral, filter);
+
+  const Unit *closest_geyser = nullptr;
+  float       closest_distance = 100000;
+
+  for (auto g : geysers) {
+
+    auto distance = Distance3D(base_location, g->pos);
+
+    if (distance < GEYSER_SEARCH_DISTANCE && distance < closest_distance) {
+      if (Query()->Placement(ABILITY_ID::BUILD_EXTRACTOR, g->pos)) {
+        // close enough and can actually place something there
+        closest_distance = distance;
+        closest_geyser = g;
+      }
+    }
   }
 
-  for (auto base : bases) {
+  if (closest_geyser == nullptr) {
+    cout << "WARN: Couldnt find a suitable geyser in range of base! Base Location: " << to_string(base_location)
+         << "; Search radius: " << GEYSER_SEARCH_DISTANCE << endl;
+    return;
   }
+
+  if (can_afford(Observation(), UNIT_TYPEID::ZERG_EXTRACTOR)) {
+
+    auto ability = get_production_ability(UNIT_TYPEID::ZERG_EXTRACTOR);
+
+    Units workers = Observation()->GetUnits(Unit::Alliance::Self, sc2::IsUnit(UNIT_TYPEID::ZERG_DRONE));
+
+    auto worker = GetRandomEntry(workers);
+
+    // TODO: make function to build extractors
+    Actions()->UnitCommand(worker, ability, closest_geyser);
+  }
+}
+
+Units BotKillerQueen::get_units_closer_than(Unit::Alliance alliance, const Filter &f, const Point2D &pos, float distance) {
+
+  auto filter = [&f, distance, &pos](const Unit &unit) -> bool { return f(unit) && Distance2D(unit.pos, pos) < distance; };
+
+  return Observation()->GetUnits(alliance, filter);
+}
+
+Units BotKillerQueen::get_units_closer_than(Unit::Alliance alliance, UNIT_TYPEID type, const Point2D &pos, float distance) {
+  return get_units_closer_than(alliance, IsUnit{type}, pos, distance);
+}
+
+bool BotKillerQueen::can_cast(const Unit *unit, ABILITY_ID id) {
+  auto available_abilities = Query()->GetAbilitiesForUnit(unit, false, true);
+
+  for (const auto &aa : available_abilities.abilities) {
+    if (aa.ability_id == id) {
+      return true;
+    }
+  }
+  return false;
 }
 
 ABILITY_ID BotKillerQueen::get_production_ability(UNIT_TYPEID unit) const {
@@ -745,11 +876,11 @@ ABILITY_ID BotKillerQueen::get_production_ability(UNIT_TYPEID unit) const {
   auto  id = unitinfo.ability_id;
 
   if (id == ABILITY_ID::INVALID) {
-    cout << "WARN: " << "Unit " << UnitTypeToName(UnitTypeID(id)) << " does not have a production_ability!" << endl;
+    cout << "WARN: " << "Unit " << (UnitTypeID(id)) << " does not have a production_ability!" << endl;
     return id;
   }
 
-  cout << "DEBUG: " << "Unit " << UnitTypeToName(UnitTypeID(id)) << "is produced by Ability " << AbilityTypeToName(id) << endl;
+  //  cout << "DEBUG: " << "Unit " << (UnitTypeID(id)) << " is produced by Ability " << AbilityID(id) << endl;
   return id;
 }
 
