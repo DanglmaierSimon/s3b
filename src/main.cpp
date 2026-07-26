@@ -14,138 +14,138 @@ using namespace std;
 
 namespace {
 
-struct Options {
-  Options() : GamePort(0), StartPort(0) {}
+	struct Options {
+		Options() : GamePort(0), StartPort(0) {}
 
-  int32_t GamePort;
-  int32_t StartPort;
-  std::string ServerAddress;
-  std::string OpponentId;
-};
+		int32_t GamePort;
+		int32_t StartPort;
+		std::string ServerAddress;
+		std::string OpponentId;
+	};
 
-void ParseArguments(int argc, char *argv[], Options *options_) {
-  sc2::ArgParser arg_parser(argv[0]);
-  arg_parser.AddOptions({
-      {"-g", "--GamePort", "Port of client to connect to", false},
-      {"-o", "--StartPort", "Starting server port", false},
-      {"-l", "--LadderServer", "Ladder server address", false},
-      {"-x", "--OpponentId", "PlayerId of opponent", false},
-  });
+	void ParseArguments(int argc, char* argv[], Options* options_) {
+		sc2::ArgParser arg_parser(argv[0]);
+		arg_parser.AddOptions({
+			{"-g", "--GamePort", "Port of client to connect to", false},
+			{"-o", "--StartPort", "Starting server port", false},
+			{"-l", "--LadderServer", "Ladder server address", false},
+			{"-x", "--OpponentId", "PlayerId of opponent", false},
+			});
 
-  arg_parser.Parse(argc, argv);
+		arg_parser.Parse(argc, argv);
 
-  std::string GamePortStr;
-  if (arg_parser.Get("GamePort", GamePortStr))
-    options_->GamePort = atoi(GamePortStr.c_str());
+		std::string GamePortStr;
+		if (arg_parser.Get("GamePort", GamePortStr))
+			options_->GamePort = atoi(GamePortStr.c_str());
 
-  std::string StartPortStr;
-  if (arg_parser.Get("StartPort", StartPortStr))
-    options_->StartPort = atoi(StartPortStr.c_str());
+		std::string StartPortStr;
+		if (arg_parser.Get("StartPort", StartPortStr))
+			options_->StartPort = atoi(StartPortStr.c_str());
 
-  std::string OpponentId;
-  if (arg_parser.Get("OpponentId", OpponentId))
-    options_->OpponentId = OpponentId;
+		std::string OpponentId;
+		if (arg_parser.Get("OpponentId", OpponentId))
+			options_->OpponentId = OpponentId;
 
-  arg_parser.Get("LadderServer", options_->ServerAddress);
-}
+		arg_parser.Get("LadderServer", options_->ServerAddress);
+	}
 
 } // namespace
 
-int main(int argc, char *argv[]) {
-  if (argc >= 3) {
-    cout << "running in ladder mode!" << endl;
-    Options options;
+int main(int argc, char* argv[]) {
+	if (argc >= 3) {
+		cout << "running in ladder mode!" << endl;
+		Options options;
 
-    for (int i = 0; i < argc; i++)
-    {
-      const char* arg = argv[i];
+		for (int i = 0; i < argc; i++)
+		{
+			const char* arg = argv[i];
 
-      std::cout << "Arg[" << i << "]: " << arg << endl;
-    }
+			std::cout << "Arg[" << i << "]: " << arg << endl;
+		}
 
-    ParseArguments(argc, argv, &options);
+		ParseArguments(argc, argv, &options);
 
-    sc2::Coordinator coordinator;
-    sc2::BotKillerQueen bot;
+		sc2::Coordinator coordinator;
+		sc2::BotKillerQueen bot;
 
-    size_t num_agents = 2;
-    coordinator.SetParticipants(
-        {CreateParticipant(sc2::Race::Zerg, &bot, "s3b_test_linux")});
+		size_t num_agents = 2;
+		coordinator.SetParticipants(
+			{ CreateParticipant(sc2::Race::Zerg, &bot, "s3b_test_linux") });
 
-    std::cout << "Connecting to port " << options.GamePort << std::endl;
-    coordinator.Connect(options.GamePort);
-    coordinator.SetupPorts(num_agents, options.StartPort, false);
+		std::cout << "Connecting to port " << options.GamePort << std::endl;
+		coordinator.Connect(options.GamePort);
+		coordinator.SetupPorts(num_agents, options.StartPort, false);
 
-    // NB (alkurbatov): Increase speed of steps processing.
-    // Disables ability to control your bot during game.
-    // Recommended for competitions.
-    coordinator.SetRawAffectsSelection(true);
+		// NB (alkurbatov): Increase speed of steps processing.
+		// Disables ability to control your bot during game.
+		// Recommended for competitions.
+		coordinator.SetRawAffectsSelection(true);
 
-    if (!coordinator.JoinGame()) {
-      cout << "could not join game!" << endl;
-    }
-    coordinator.SetTimeoutMS(10000);
-    std::cout << "Successfully joined game" << std::endl;
+		if (!coordinator.JoinGame()) {
+			cout << "could not join game!" << endl;
+		}
+		coordinator.SetTimeoutMS(10000);
+		std::cout << "Successfully joined game" << std::endl;
 
-    while (coordinator.Update()) {
-    }
+		while (coordinator.Update()) {
+		}
 
-    return 0;
-  }
+		return 0;
+	}
 
-  sc2::Coordinator coordinator;
-  if (!coordinator.LoadSettings(argc, argv)) {
-    return 1;
-  }
+	sc2::Coordinator coordinator;
+	if (!coordinator.LoadSettings(argc, argv)) {
+		return 1;
+	}
 
-  coordinator.SetMultithreaded(false);
-  coordinator.SetRealtime(false);
+	coordinator.SetMultithreaded(false);
+	coordinator.SetRealtime(false);
 
-  // Add the custom bot, it will control the players.
-  sc2::BotKillerQueen bot1;
-  auto race = sc2::Race::Zerg;
-  // sc2::TerranBot bot1;
-  // auto race = sc2::Race::Terran;
+	// Add the custom bot, it will control the players.
+	sc2::BotKillerQueen bot1;
+	auto race = sc2::Race::Zerg;
+	// sc2::TerranBot bot1;
+	// auto race = sc2::Race::Terran;
 
-  coordinator.SetUseGeneralizedAbilityId(true);
+	coordinator.SetUseGeneralizedAbilityId(true);
 
-  coordinator.SetParticipants({
-      CreateParticipant(race, &bot1),
-      CreateComputer(sc2::Race::Random, sc2::Difficulty::Medium,
-                     sc2::RandomBuild, "stupid computer"),
-  });
+	coordinator.SetParticipants({
+		CreateParticipant(race, &bot1),
+		CreateComputer(sc2::Race::Random, sc2::Difficulty::Medium,
+					   sc2::RandomBuild, "stupid computer"),
+		});
 
-  // Start the game.
-  coordinator.LaunchStarcraft();
+	// Start the game.
+	coordinator.LaunchStarcraft();
 
-  const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
+	const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
 
-  const char *map_pool[] = {"TorchesAIE_v4.SC2Map", "PersephoneAIE_v4.SC2Map",
-                            //"Simple128.SC2Map",
-                            "Flat128.SC2Map"};
+	const char* map_pool[] = { "TorchesAIE_v4.SC2Map", /*"PersephoneAIE_v4.SC2Map",
+		//"Simple128.SC2Map",
+		"Flat128.SC2Map"*/ };
 
-  auto pool_size = std::size(map_pool);
+	auto pool_size = std::size(map_pool);
 
-  int low_dist = 0;
-  int high_dist = pool_size;
-  std::srand((unsigned int)std::time(nullptr));
-  auto selection = low_dist + std::rand() % (high_dist - low_dist);
+	int low_dist = 0;
+	int high_dist = pool_size;
+	std::srand((unsigned int)std::time(nullptr));
+	auto selection = low_dist + std::rand() % (high_dist - low_dist);
 
-  auto path = std::string(mapdir);
-  path.append(map_pool[selection]);
+	auto path = std::string(mapdir);
+	path.append(map_pool[selection]);
 
-  std::printf("Chosen map: %s\n", map_pool[selection]);
+	std::printf("Chosen map: %s\n", map_pool[selection]);
 
-  // bool do_break = false;
+	// bool do_break = false;
 
-  if (!coordinator.StartGame(path)) {
-    cout << "Error starting game!" << endl;
-    return 3;
-  }
-  while (coordinator.Update()) {
-  }
+	if (!coordinator.StartGame(path)) {
+		cout << "Error starting game!" << endl;
+		return 3;
+	}
+	while (coordinator.Update()) {
+	}
 
-  bot1.Control()->DumpProtoUsage();
+	bot1.Control()->DumpProtoUsage();
 
-  return 0;
+	return 0;
 }
