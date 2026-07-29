@@ -48,7 +48,7 @@ inline const Unit *get_closest_unit(const Point2D &pos, const Units &units) {
   return closest;
 }
 
-inline const Unit *get_closest_unit(const ObservationInterface *obs, const Point2D pos, UNIT_TYPEID type) {
+inline const Unit *get_closest_unit(const ObservationInterface *obs, const Point2D &pos, UNIT_TYPEID type) {
   Units       units = obs->GetUnits(sc2::IsUnit{type});
   float       distance = 0;
   const Unit *target = nullptr;
@@ -64,5 +64,12 @@ inline const Unit *get_closest_unit(const ObservationInterface *obs, const Point
   }
 
   return target;
+}
+
+inline const Unit *get_closest_unit(const ObservationInterface *obs, const Point2D &pos, sc2::Filter filter) {
+
+  auto units = obs->GetUnits(Unit::Alliance::Self, filter);
+
+  return get_closest_unit(pos, units);
 }
 } // namespace sc2

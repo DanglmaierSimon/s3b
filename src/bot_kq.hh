@@ -172,19 +172,7 @@ private:
     return false;
   }
 
-  inline bool TryBuildOnCreep(AbilityID ability_type_for_structure, UnitTypeID unit_type) {
-    float       rx = GetRandomScalar();
-    float       ry = GetRandomScalar();
-    const auto *observation = Observation();
-    auto        start_location = observation->GetStartLocation();
-
-    Point3D build_location = Point3D(start_location.x + rx * 15, start_location.y + ry * 15, start_location.z);
-
-    if (observation->HasCreep(build_location)) {
-      return TryBuildStructure(ability_type_for_structure, unit_type, build_location);
-    }
-    return false;
-  }
+  bool TryBuildOnCreep(AbilityID ability_type_for_structure, UnitTypeID unit_type);
 
   inline bool TryExpand(AbilityID build_ability, UnitTypeID worker_type) {
     const ObservationInterface *observation = Observation();

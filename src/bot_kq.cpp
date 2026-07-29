@@ -1038,6 +1038,44 @@ std::vector<UNIT_TYPEID> BotKillerQueen::get_requirements(UNIT_TYPEID unit) cons
   return ret;
 }
 
+bool BotKillerQueen::TryBuildOnCreep(AbilityID ability_type_for_structure, UnitTypeID unit_type) {
+  float       rx = GetRandomScalar();
+  float       ry = GetRandomScalar();
+  const auto *observation = Observation();
+
+  Filter base_filter = [](const Unit &unit) -> bool { return unit.IsBuildFinished() && IsTownHall{}(unit); };
+
+  auto bases = Observation()->GetUnits(Unit::Alliance::Self, base_filter);
+
+  if (bases.empty()) {
+    cout << "WARN: Could not find any finished bases, we probably have other problems then..." << endl;
+    return false;
+  }
+
+  auto start_location = GetRandomEntry(bases);
+
+  // Try 10 times to find a suitable build location
+  for (int i = 0; i < 10; i++) {
+    Point3D build_location = Point3D(start_location->pos.x + rx * 15, start_location->pos.y + ry * 15, start_location->pos.z);
+
+    auto building_filter = [](const Unit &unit) -> bool { return unit.alliance == Unit::Alliance::Self && IsBuilding{}(unit); };
+
+    auto closest_other_building = get_closest_unit(Observation(), build_location, building_filter);
+
+    if (closest_other_building && (Distance2D(closest_other_building->pos, build_location) < 4)) {
+      // dont build too close to other buildings
+      continue;
+    }
+
+    if (observation->HasCreep(build_location)) {
+      return TryBuildStructure(ability_type_for_structure, unit_type, build_location);
+    }
+    return false;
+  }
+
+  return false;
+}
+
 bool BotKillerQueen::TryBuildUnit(AbilityID ability_type_for_unit, UnitTypeID unit_type) {
   const ObservationInterface *observation = Observation();
 
