@@ -21,10 +21,39 @@
 #include "utils.h"
 
 using namespace std;
+using namespace sc2;
 
 namespace {
 
-constexpr float GEYSER_SEARCH_DISTANCE = 20.0;
+struct IsNotUnits {
+  inline explicit IsNotUnits(const std::vector<sc2::UNIT_TYPEID> &types_) : m_types{types_} {}
+
+  inline bool operator()(const sc2::Unit &unit_) const {
+    for (auto t : m_types) {
+      if (unit_.unit_type == t) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+private:
+  std::vector<sc2::UNIT_TYPEID> m_types;
+};
+
+struct IsMilitary {
+
+  inline bool operator()(const sc2::Unit &unit_) const {
+
+    return unit_.alliance == sc2::Unit::Alliance::Self &&
+           IsNotUnits{
+               {UNIT_TYPEID::ZERG_DRONE, UNIT_TYPEID::ZERG_EGG, UNIT_TYPEID::ZERG_LARVA, UNIT_TYPEID::ZERG_OVERLORD}
+    }(unit_);
+  }
+};
+
+constexpr float GEYSER_SEARCH_DISTANCE = 17.0f;
 
 struct GasInfo {
   int wanted_geysers;
@@ -480,13 +509,14 @@ void sc2::BotKillerQueen::ExpandIfPossible() {
 }
 
 void sc2::BotKillerQueen::BuildWorkers() {
-  auto       obs = Observation();
-  const auto hatcheries = obs->GetUnits(Unit::Alliance::Self, [](const Unit &unit) {
+  auto obs = Observation();
+  auto hatcheries = obs->GetUnits(Unit::Alliance::Self, [](const Unit &unit) {
     return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY);
   });
-  auto       hatch_count = hatcheries.size();
-  auto       larva_count = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
-  auto       pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
+  auto hatch_count = hatcheries.size();
+  auto larva_count = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
+  auto pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
+
   if (larva_count == 0 || pending_workers > hatch_count) {
     return;
   }
@@ -530,6 +560,7 @@ void BotKillerQueen::BuildQueens() {
 
   if (spawning_pools > 0 && can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN)) {
     auto pending_queens = get_pending_units(Observation(), UNIT_TYPEID::ZERG_QUEEN);
+    auto finished_queens = Observation()->GetUnits(Unit::Alliance::Self, IsUnit{UNIT_TYPEID::ZERG_QUEEN});
     auto hatcheries = get_ready_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
 
     if (pending_queens >= hatcheries) {
@@ -566,7 +597,7 @@ void BotKillerQueen::AttackWithQueens() {
 
     auto tumors = obs->GetUnits(Unit::Alliance::Self,
                                 IsUnits{
-                                    {UNIT_TYPEID::ZERG_CREEPTUMOR,
+                                    {UNIT_TYPEID::ZERG_CREEPTUMORQUEEN,
                                      UNIT_TYPEID::ZERG_CREEPTUMOR,
                                      UNIT_TYPEID::ZERG_CREEPTUMORBURROWED,
                                      UNIT_TYPEID::ZERG_HATCHERY}
@@ -579,9 +610,18 @@ void BotKillerQueen::AttackWithQueens() {
       distance = Distance2D(closest_tumor->pos, offset);
     }
 
-    if (distance > 8 && can_cast(random_queen, ABILITY_ID::BUILD_CREEPTUMOR_QUEEN)) {
-      Actions()->UnitCommand(random_queen, ABILITY_ID::BUILD_CREEPTUMOR_QUEEN, offset);
+    ABILITY_ID tumor_prod_ability = get_production_ability(UNIT_TYPEID::ZERG_CREEPTUMORQUEEN);
+
+    auto general_id = static_cast<ABILITY_ID>(abilities_.at((int)tumor_prod_ability).remaps_to_ability_id);
+
+    if (distance > 8 && can_cast(random_queen, general_id)) {
+      Actions()->UnitCommand(random_queen, general_id, offset);
     }
+  }
+
+  // dont attack with too few queens
+  if (queens.size() < 10) {
+    return;
   }
 
   if (targets.empty()) {
@@ -603,7 +643,100 @@ void BotKillerQueen::AttackWithQueens() {
   }
 }
 
-void BotKillerQueen::SpreadCreep() {}
+void BotKillerQueen::SpreadCreep() {
+
+  auto tumors = Observation()->GetUnits(
+      Unit::Alliance::Self,
+      IsUnits{
+          {UNIT_TYPEID::ZERG_CREEPTUMOR, UNIT_TYPEID::ZERG_CREEPTUMORBURROWED, UNIT_TYPEID::ZERG_CREEPTUMORQUEEN}
+  });
+
+  if (tumors.empty()) {
+    return;
+  }
+
+  int tumorcount = 0;
+
+  while (true) {
+
+    auto t = GetRandomEntry(tumors);
+
+    if (tumorcount >= tumors.size()) {
+      break;
+    }
+    tumorcount++;
+    if (t->build_progress < 1.0) {
+      continue;
+    }
+
+    auto abilites = Query()->GetAbilitiesForUnit(t, false, false);
+
+    if (abilites.abilities.empty()) {
+      continue;
+    }
+
+    for (auto a : abilites.abilities) {
+      cout << "Available ability: " << AbilityTypeToName(a.ability_id) << " [" << a.ability_id.to_string() << "]" << endl;
+    }
+
+    cout << t->tag << endl;
+
+    auto p = t->pos + Point3D(0, 0, 2);
+
+    constexpr auto CHECK_DISTANCE = 12.0f;
+    constexpr auto CAST_DISTANCE = 10.0f;
+
+    // i am ashamed of this shit
+    std::array<int, 4> indizes = {0, 1, 2, 3};
+
+    std::array<Point3D, 4> directions = {p + Point3D(CHECK_DISTANCE, 0, 0),
+                                         p + Point3D(0, CHECK_DISTANCE, 0),
+                                         p + Point3D(-CHECK_DISTANCE, 0, 0),
+                                         p + Point3D(0, -CHECK_DISTANCE, 0)};
+
+    // TODO: become smart enough to figure out Vector arithmetic to create
+    // a point exactly 10 Units away in the given direction
+    // TODO: Figure out a way to not always make it the 4 cardinal directions but rotate
+    // the 4 search "arms" randomly
+    // to do this, use this formula to translate the vector to [0,0], rotate by an angle and then
+    // translate back:
+    // x_rotated = ((x - dx) * cos(angle)) - ((dy - y) * sin(angle)) + dx
+    // y_rotated = dy - ((dy - y) * cos(angle)) + ((x - dx) * sin(angle
+
+    std::array<Point2D, 4> target_points = {p + Point3D(CAST_DISTANCE, 0, 0),
+                                            p + Point3D(0, CAST_DISTANCE, 0),
+                                            p + Point3D(-CAST_DISTANCE, 0, 0),
+                                            p + Point3D(0, -CAST_DISTANCE, 0)};
+
+    int counter = 0;
+
+    while (true) {
+      auto index = GetRandomEntry(indizes);
+
+      auto direction = directions.at(index);
+      auto target_point = target_points.at(index);
+
+      if (!Observation()->HasCreep(direction)) {
+
+        Debug()->DebugLineOut(t->pos, Point3D{target_point.x, target_point.y, t->pos.z}, Colors::Purple);
+        Debug()->DebugSphereOut(Point3D{target_point.x, target_point.y, t->pos.z}, 1, Colors::Blue);
+        Debug()->SendDebug();
+
+        if (Query()->Placement(ABILITY_ID::BUILD_CREEPTUMOR_TUMOR, target_point)) {
+          Actions()->UnitCommand(t, ABILITY_ID::BUILD_CREEPTUMOR_TUMOR, target_point, false);
+        }
+
+        return;
+      } else {
+        counter += 1;
+      }
+
+      if (counter >= 4) {
+        break;
+      }
+    }
+  }
+}
 
 void BotKillerQueen::distributeWorkers() {
   auto hatcheries = Observation()->GetUnits(Unit::Alliance::Self, IsTownHall{});

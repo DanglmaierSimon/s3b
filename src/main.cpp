@@ -15,8 +15,8 @@ namespace {
 struct Options {
   Options() : GamePort(0), StartPort(0) {}
 
-  int32_t GamePort;
-  int32_t StartPort;
+  int32_t     GamePort;
+  int32_t     StartPort;
   std::string ServerAddress;
   std::string OpponentId;
 };
@@ -24,10 +24,10 @@ struct Options {
 void ParseArguments(int argc, char *argv[], Options *options_) {
   sc2::ArgParser arg_parser(argv[0]);
   arg_parser.AddOptions({
-      {"-g", "--GamePort", "Port of client to connect to", false},
-      {"-o", "--StartPort", "Starting server port", false},
-      {"-l", "--LadderServer", "Ladder server address", false},
-      {"-x", "--OpponentId", "PlayerId of opponent", false},
+      {"-g", "--GamePort",     "Port of client to connect to", false},
+      {"-o", "--StartPort",    "Starting server port",         false},
+      {"-l", "--LadderServer", "Ladder server address",        false},
+      {"-x", "--OpponentId",   "PlayerId of opponent",         false},
   });
 
   arg_parser.Parse(argc, argv);
@@ -62,12 +62,11 @@ int main(int argc, char *argv[]) {
 
     ParseArguments(argc, argv, &options);
 
-    sc2::Coordinator coordinator;
+    sc2::Coordinator    coordinator;
     sc2::BotKillerQueen bot;
 
     size_t num_agents = 2;
-    coordinator.SetParticipants(
-        {CreateParticipant(sc2::Race::Zerg, &bot, "s3b_test_linux")});
+    coordinator.SetParticipants({CreateParticipant(sc2::Race::Zerg, &bot, "s3b_test_linux")});
 
     std::cout << "Connecting to port " << options.GamePort << std::endl;
     coordinator.Connect(options.GamePort);
@@ -100,7 +99,7 @@ int main(int argc, char *argv[]) {
 
   // Add the custom bot, it will control the players.
   sc2::BotKillerQueen bot1;
-  auto race = sc2::Race::Zerg;
+  auto                race = sc2::Race::Zerg;
   // sc2::TerranBot bot1;
   // auto race = sc2::Race::Terran;
 
@@ -108,8 +107,7 @@ int main(int argc, char *argv[]) {
 
   coordinator.SetParticipants({
       CreateParticipant(race, &bot1),
-      CreateComputer(sc2::Race::Random, sc2::Difficulty::Medium,
-                     sc2::RandomBuild, "stupid computer"),
+      CreateComputer(sc2::Race::Random, sc2::Difficulty::Medium, sc2::RandomBuild, "stupid computer"),
   });
 
   // Start the game.
@@ -118,9 +116,12 @@ int main(int argc, char *argv[]) {
   const auto mapdir = "C:\\Program Files (x86)\\StarCraft II\\Maps\\";
 
   const char *map_pool[] = {
-      "IncorporealAIE_v4.SC2Map", "MagannathaAIE_v2.SC2Map",
-      "UltraloveAIE_v2.SC2Map",   "PersephoneAIE_v4.SC2Map",
-      "PylonAIE_v4.SC2Map",       "TorchesAIE_v4.SC2Map",
+      "IncorporealAIE_v4.SC2Map",
+      "MagannathaAIE_v2.SC2Map",
+      "UltraloveAIE_v2.SC2Map",
+      "PersephoneAIE_v4.SC2Map",
+      "PylonAIE_v4.SC2Map",
+      "TorchesAIE_v4.SC2Map",
   };
 
   auto pool_size = (int)std::size(map_pool);
