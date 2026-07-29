@@ -306,6 +306,10 @@ void BotKillerQueen::OnStep() {
 
   BuildSpawnPoolIfPossible();
 
+  BuildBuildingIfPossible(UNIT_TYPEID::ZERG_LAIR);
+
+  BuildBuildingIfPossible(UNIT_TYPEID::ZERG_ROACHWARREN);
+
   ExpandIfPossible();
 
   BuildWorkers();
@@ -478,6 +482,23 @@ void BotKillerQueen::PreventSupplyBlock(const ObservationInterface *obs) {
   }
 }
 
+void BotKillerQueen::BuildBuildingIfPossible(UNIT_TYPEID unit) {
+
+  auto obs = Observation();
+
+  if (!can_afford(obs, unit)) {
+    return;
+  }
+
+  if (get_pending_buildings(obs, IsUnit(unit)).size() > 0 || obs->GetUnits(Unit::Alliance::Self, IsUnit(unit)).size() > 0) {
+    return;
+  }
+
+  auto ability_id = get_production_ability(unit);
+
+  TryBuildOnCreep(ability_id, UNIT_TYPEID::ZERG_DRONE);
+}
+
 void sc2::BotKillerQueen::BuildSpawnPoolIfPossible() {
   auto obs = Observation();
 
@@ -500,7 +521,7 @@ void sc2::BotKillerQueen::ExpandIfPossible() {
   }
 
   auto pending_hatches = get_pending_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
-  auto ready_hatches = get_ready_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
+  auto ready_hatches = get_ready_units(Observation(), IsTownHall{});
 
   if (pending_hatches.size() + ready_hatches.size() >= expansions_.size()) {
     return;
@@ -510,9 +531,7 @@ void sc2::BotKillerQueen::ExpandIfPossible() {
 
 void sc2::BotKillerQueen::BuildWorkers() {
   auto obs = Observation();
-  auto hatcheries = obs->GetUnits(Unit::Alliance::Self, [](const Unit &unit) {
-    return unit.build_progress == 1.0 && unit.unit_type == UnitTypeID(UNIT_TYPEID::ZERG_HATCHERY);
-  });
+  auto hatcheries = get_ready_units(obs, IsTownHall{});
   auto hatch_count = hatcheries.size();
   auto larva_count = obs->GetUnits(Unit::Alliance::Self, IsUnit(UNIT_TYPEID::ZERG_LARVA)).size();
   auto pending_workers = get_pending_units(obs, UNIT_TYPEID::ZERG_DRONE).size();
@@ -561,7 +580,7 @@ void BotKillerQueen::BuildQueens() {
   if (spawning_pools > 0 && can_afford(Observation(), UNIT_TYPEID::ZERG_QUEEN)) {
     auto pending_queens = get_pending_units(Observation(), UNIT_TYPEID::ZERG_QUEEN);
     auto finished_queens = Observation()->GetUnits(Unit::Alliance::Self, IsUnit{UNIT_TYPEID::ZERG_QUEEN});
-    auto hatcheries = get_ready_units(Observation(), UNIT_TYPEID::ZERG_HATCHERY);
+    auto hatcheries = get_ready_units(Observation(), IsTownHall{});
 
     if (pending_queens >= hatcheries) {
       return;
@@ -600,7 +619,9 @@ void BotKillerQueen::AttackWithQueens() {
                                     {UNIT_TYPEID::ZERG_CREEPTUMORQUEEN,
                                      UNIT_TYPEID::ZERG_CREEPTUMOR,
                                      UNIT_TYPEID::ZERG_CREEPTUMORBURROWED,
-                                     UNIT_TYPEID::ZERG_HATCHERY}
+                                     UNIT_TYPEID::ZERG_HATCHERY,
+                                     UNIT_TYPEID::ZERG_HIVE,
+                                     UNIT_TYPEID::ZERG_LAIR}
     });
 
     auto closest_tumor = get_closest_unit(offset, tumors);

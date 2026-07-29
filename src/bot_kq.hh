@@ -35,6 +35,8 @@ private:
 
   void PreventSupplyBlock(const ObservationInterface *obs);
 
+  void BuildBuildingIfPossible(UNIT_TYPEID unit);
+
   void BuildSpawnPoolIfPossible();
 
   void ExpandIfPossible();
@@ -93,7 +95,12 @@ private:
   }
 
   inline Units get_ready_units(const ObservationInterface *obs, UNIT_TYPEID type) {
-    auto f = [type](const Unit &unit) { return unit.build_progress == 1.0 && IsUnit{type}(unit); };
+    auto f = [type](const Unit &unit) { return unit.IsBuildFinished() && IsUnit{type}(unit); };
+    return obs->GetUnits(Unit::Alliance::Self, f);
+  }
+
+  inline Units get_ready_units(const ObservationInterface *obs, Filter filter) {
+    auto f = [&filter](const Unit &unit) { return unit.IsBuildFinished() && filter(unit); };
     return obs->GetUnits(Unit::Alliance::Self, f);
   }
 

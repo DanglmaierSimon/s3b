@@ -17,9 +17,7 @@ std::string to_string(const sc2::Point2D &p) {
 }
 
 inline Units get_pending_buildings(const ObservationInterface *obs, const sc2::Filter &filter) {
-  auto f = [&filter](const Unit &unit) -> bool {
-    return unit.is_alive && unit.build_progress < 1.0 && is_building(unit) && filter(unit);
-  };
+  auto f = [&filter](const Unit &unit) -> bool { return !unit.IsBuildFinished() && IsBuilding{}(unit) && filter(unit); };
   return obs->GetUnits(f);
 }
 
