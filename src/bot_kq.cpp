@@ -888,6 +888,10 @@ void BotKillerQueen::buildGases() {
   auto bases = Observation()->GetUnits(Unit::Alliance::Self, IsTownHall{});
 
   for (auto base : bases) {
+
+    if (!base->IsBuildFinished()) {
+      continue;
+    }
     auto gas_info = get_gas_info(base->assigned_harvesters, base->ideal_harvesters);
     // build new gases
 
